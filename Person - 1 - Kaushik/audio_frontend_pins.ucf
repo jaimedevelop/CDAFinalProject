@@ -1,0 +1,17 @@
+# Person 1 audio pin constraints for Digilent Anvyl / SSM2603.
+# Merge these NET entries into the final top-level UCF if the final top uses
+# the same port names. Do not duplicate the 100 MHz clock constraint if Person
+# 4 already has it in the combined system UCF.
+
+## AUDIO
+NET AUD_DACDAT   LOC=A5  | IOSTANDARD=LVCMOS33; # AC-PBDAT
+NET AUD_DACLRCK  LOC=D6  | IOSTANDARD=LVCMOS33; # AC-PBLRC
+NET AUD_ADCDAT   LOC=C6  | IOSTANDARD=LVCMOS33; # AC-RECDAT
+NET AUD_ADCLRCK  LOC=B6  | IOSTANDARD=LVCMOS33; # AC-RECLRC
+
+NET AUD_MUTE     LOC=A15 | IOSTANDARD=LVCMOS33; # AC-MUTE, active low
+NET AUD_XCK      LOC=A6  | IOSTANDARD=LVCMOS33; # AC-MCLK
+NET AUD_BCLK     LOC=B12 | IOSTANDARD=LVCMOS33; # AC-BCLK
+
+NET AUD_I2C_SDAT LOC=C5  | PULLUP | IOSTANDARD=LVCMOS33;
+NET AUD_I2C_SCLK LOC=A4  | PULLUP | IOSTANDARD=LVCMOS33;
