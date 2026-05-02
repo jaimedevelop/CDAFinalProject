@@ -13,7 +13,6 @@ What is independent:
 What depends on teammates:
 
 - Person 2 must confirm whether final memory stores 8-bit or 16-bit samples.
-- Person 3 must confirm command codes and any volume-level encoding from picoBlaze.
 - Person 4 must connect `audio_frontend` into the final top module and wire clocks according to the RAM/clock-wizard plan.
 
 Current integration choice:
@@ -24,4 +23,4 @@ Current integration choice:
 
 Potential follow-up:
 
-- Add a volume scaling input once Person 3/Person 4 define the final volume signal.
+- Only adjust the wrapper if Person 4 needs a different audio handoff signal during final integration.
