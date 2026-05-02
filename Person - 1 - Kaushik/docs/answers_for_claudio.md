@@ -28,14 +28,14 @@ For Person 1, I used the final-project audio codec demo instead of the Lab 6 UAR
 
 5. What files should Person 4 add to the final ISE project?
 
-   Add these files from the `Kaushik` folder:
+   Add these files from the `Person - 1 - Kaushik/src` folder:
 
-   - `audio_frontend.v`
-   - `audio_codec.v`
-   - `i2c_av_config.v`
-   - `i2c_controller.v`
-   - `clk_wiz_v3_6.vhd`
+   - `src/audio_frontend.v`
+   - `src/audio_codec.v`
+   - `src/i2c_av_config.v`
+   - `src/i2c_controller.v`
+   - `src/clk_wiz_v3_6.vhd`
 
-   Merge the audio pin constraints from `audio_frontend_pins.ucf` into the final system UCF.
+   Merge the audio pin constraints from `constraints/audio_frontend_pins.ucf` into the final system UCF.
 
-   Do not add `sim_clk_wiz_v3_6_stub.v` to the ISE hardware project. It is only for Icarus Verilog syntax checks on Windows.
+   Do not add `sim/sim_clk_wiz_v3_6_stub.v` to the ISE hardware project. It is only for Icarus Verilog syntax checks on Windows.
