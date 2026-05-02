@@ -1,7 +1,5 @@
 # Person 1 Audio Answers - Kaushik Selvakumar
 
-Folder name note: Windows does not allow `:` in folder names, so this folder is named `Person - 1 - Kaushik` instead of `Person - 1: Kaushik`.
-
 ## Lab 6 Connection
 
 Lab 6 is related to the final project mainly through picoBlaze, UART, and the PuTTY serial-terminal workflow. The Lab 6 files in the shared VM folder include the `program.psm` assembly pattern, `kcpsm6.v`, UART modules, and loopback top-level design. Those are most directly useful for Person 3's serial menu and command handling.
@@ -28,7 +26,7 @@ For Person 1, I used the final-project audio codec demo instead of the Lab 6 UAR
 
 5. What files should Person 4 add to the final ISE project?
 
-   Add these files from the `Person - 1 - Kaushik/src` folder:
+   Add these files from the `Person 1 (Kaushik Selvakumar)/src` folder:
 
    - `src/audio_frontend.v`
    - `src/audio_codec.v`

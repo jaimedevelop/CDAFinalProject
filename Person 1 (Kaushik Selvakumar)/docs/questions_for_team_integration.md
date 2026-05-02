@@ -4,7 +4,7 @@ Prepared by Kaushik Selvakumar, Person 1 Audio Codec & Hardware Integration.
 
 ## Current Person 1 Status
 
-- Audio wrapper files are organized under `Person - 1 - Kaushik/src`.
+- Audio wrapper files are organized under `Person 1 (Kaushik Selvakumar)/src`.
 - Standalone audio test top is `src/audio_passthrough_top.v`.
 - Final integration wrapper is `src/audio_frontend.v`.
 - Icarus Verilog syntax/elaboration check passes on Windows.
@@ -22,7 +22,7 @@ Prepared by Kaushik Selvakumar, Person 1 Audio Codec & Hardware Integration.
 ## Questions For Person 4 - Top Module / Integration Lead
 
 1. What is the final top module name?
-2. Are you instantiating `Person - 1 - Kaushik/src/audio_frontend.v` directly?
+2. Are you instantiating `Person 1 (Kaushik Selvakumar)/src/audio_frontend.v` directly?
 3. Which 100 MHz clock should feed `audio_frontend.clk_100mhz`?
 4. Are you generating the required 100 MHz audio/system clocks from RAM `clkout` as described in the project instructions?
 5. Should Person 1's `codec_ready` gate record/playback operations?
