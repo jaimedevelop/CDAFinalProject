@@ -9,7 +9,7 @@ It does not need the Anvyl board, PuTTY, VirtualBox USB passthrough, or Xilinx I
 From the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "Person 3 (Felipe Vignatti)\sim\run_terminal_check.ps1"
+powershell -ExecutionPolicy Bypass -File "Person 3 (Felipe Vignatti)\updated files\run_terminal_check.ps1"
 ```
 
 ## Current Result
