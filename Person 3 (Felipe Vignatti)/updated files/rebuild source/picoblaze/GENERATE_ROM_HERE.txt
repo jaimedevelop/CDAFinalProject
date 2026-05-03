@@ -1,0 +1,13 @@
+This folder needs the generated PicoBlaze ROM file:
+
+final_project_complete.v
+
+Generate it from:
+
+final_project_complete.psm
+
+using the KCPSM6 assembler flow from Lab 6, then place it in this folder before rebuilding the ISE bitstream.
+
+The ISE project file in this package expects:
+
+picoblaze/final_project_complete.v
