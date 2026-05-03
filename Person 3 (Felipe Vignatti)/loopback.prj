@@ -1,0 +1,8 @@
+verilog work "../Downloads/verilog/uart_tx6.v"
+verilog work "../Downloads/verilog/uart_rx6.v"
+verilog work "../Downloads/verilog/kcpsm6.v"
+verilog work "../Downloads/picoblaze/final_project_complete.v"
+verilog work "../Downloads/verilog/led_driver.v"
+verilog work "../Downloads/rs232_uart.v"
+verilog work "../Downloads/picoblaze.v"
+verilog work "../Downloads/loopback.v"

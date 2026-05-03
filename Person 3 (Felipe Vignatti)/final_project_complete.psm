@@ -1,0 +1,1879 @@
+;================================================================
+; CDA 4203/4203L Spring 2026
+; FINAL PROJECT: AUDIO MESSAGE RECORDER
+; picoBlaze Assembly Code (PSM)
+; UI Controller & Menu System
+;
+; PORT MAP SUMMARY:
+;   IN  port 00 = switches/buttons
+;   OUT port 01 = LEDs
+;   IN  port 02 = UART RX data
+;   OUT port 03 = UART TX data
+;   IN  port 04 = UART data present (LSB=1 means data ready)
+;   IN  port 05 = UART buffer full  (LSB=1 means buffer full)
+;   OUT port 06 = command code to Top Module
+;   OUT port 07 = message number to Top Module (1-4)
+;   IN  port 08 = status from Top Module
+;                 bit0 = memory full
+;                 bit1 = message slot 1 used
+;                 bit2 = message slot 2 used
+;                 bit3 = message slot 3 used
+;                 bit4 = message slot 4 used
+;
+; COMMAND CODES (sent on port 06):
+;   00 = IDLE / no command
+;   01 = PLAY
+;   02 = RECORD
+;   03 = DELETE single message
+;   04 = DELETE ALL messages
+;   05 = VOLUME UP
+;   06 = VOLUME DOWN
+;   07 = PAUSE
+;   08 = RESUME
+;   09 = SKIP to next message
+;   0A = STOP
+;
+; BUTTON MAP (port 00 bits):
+;   bit0 = Pause/Resume toggle
+;   bit1 = Skip
+;   bit2 = Stop / Back to menu
+;   bit3 = Volume Up
+;   bit4 = Volume Down
+;================================================================
+
+;================================================================
+; PORT DEFINITIONS
+;================================================================
+CONSTANT switches         , 00
+CONSTANT leds             , 01
+CONSTANT uart_data_rx     , 02
+CONSTANT uart_data_tx     , 03
+CONSTANT data_present     , 04
+CONSTANT buffer_full      , 05
+CONSTANT command_out      , 06
+CONSTANT msg_num_out      , 07
+CONSTANT status_in        , 08
+
+;================================================================
+; COMMAND CODE CONSTANTS
+;================================================================
+CONSTANT CMD_IDLE         , 00
+CONSTANT CMD_PLAY         , 01
+CONSTANT CMD_RECORD       , 02
+CONSTANT CMD_DELETE       , 03
+CONSTANT CMD_DELETE_ALL   , 04
+CONSTANT CMD_VOL_UP       , 05
+CONSTANT CMD_VOL_DOWN     , 06
+CONSTANT CMD_PAUSE        , 07
+CONSTANT CMD_RESUME       , 08
+CONSTANT CMD_SKIP         , 09
+CONSTANT CMD_STOP         , 0A
+
+;================================================================
+; BUTTON BIT MASKS
+;================================================================
+CONSTANT BTN_PAUSE        , 01
+CONSTANT BTN_SKIP         , 02
+CONSTANT BTN_STOP         , 04
+CONSTANT BTN_VOL_UP       , 08
+CONSTANT BTN_VOL_DOWN     , 10
+
+;================================================================
+; STATUS BIT MASKS (from Top Module on port 08)
+;================================================================
+CONSTANT STATUS_MEM_FULL  , 01
+CONSTANT STATUS_MSG1      , 02
+CONSTANT STATUS_MSG2      , 04
+CONSTANT STATUS_MSG3      , 08
+CONSTANT STATUS_MSG4      , 10
+
+;================================================================
+; GENERAL CONSTANTS
+;================================================================
+CONSTANT all_clear        , 00
+CONSTANT all_set          , FF
+
+;================================================================
+; ASCII CONSTANTS
+;================================================================
+CONSTANT ascii_NUL        , 00
+CONSTANT ascii_LF         , 0A
+CONSTANT ascii_CR         , 0D
+CONSTANT ascii_SPACE      , 20
+CONSTANT ascii_EXCLAIM    , 21
+CONSTANT ascii_DBLQUOT    , 22
+CONSTANT ascii_NUMSIGN    , 23
+CONSTANT ascii_DOLLAR     , 24
+CONSTANT ascii_PERCENT    , 25
+CONSTANT ascii_AMP        , 26
+CONSTANT ascii_SINQUOT    , 27
+CONSTANT ascii_LPAREN     , 28
+CONSTANT ascii_RPAREN     , 29
+CONSTANT ascii_ASTERISK   , 2A
+CONSTANT ascii_PLUS       , 2B
+CONSTANT ascii_COMMA      , 2C
+CONSTANT ascii_MINUS      , 2D
+CONSTANT ascii_PERIOD     , 2E
+CONSTANT ascii_FWDSLASH   , 2F
+CONSTANT ascii_0          , 30
+CONSTANT ascii_1          , 31
+CONSTANT ascii_2          , 32
+CONSTANT ascii_3          , 33
+CONSTANT ascii_4          , 34
+CONSTANT ascii_5          , 35
+CONSTANT ascii_6          , 36
+CONSTANT ascii_7          , 37
+CONSTANT ascii_8          , 38
+CONSTANT ascii_9          , 39
+CONSTANT ascii_COLON      , 3A
+CONSTANT ascii_SEMI       , 3B
+CONSTANT ascii_LESS       , 3C
+CONSTANT ascii_EQUAL      , 3D
+CONSTANT ascii_GREATER    , 3E
+CONSTANT ascii_QUESTION   , 3F
+CONSTANT ascii_AT         , 40
+CONSTANT ascii_A          , 41
+CONSTANT ascii_B          , 42
+CONSTANT ascii_C          , 43
+CONSTANT ascii_D          , 44
+CONSTANT ascii_E          , 45
+CONSTANT ascii_F          , 46
+CONSTANT ascii_G          , 47
+CONSTANT ascii_H          , 48
+CONSTANT ascii_I          , 49
+CONSTANT ascii_J          , 4A
+CONSTANT ascii_K          , 4B
+CONSTANT ascii_L          , 4C
+CONSTANT ascii_M          , 4D
+CONSTANT ascii_N          , 4E
+CONSTANT ascii_O          , 4F
+CONSTANT ascii_P          , 50
+CONSTANT ascii_Q          , 51
+CONSTANT ascii_R          , 52
+CONSTANT ascii_S          , 53
+CONSTANT ascii_T          , 54
+CONSTANT ascii_U          , 55
+CONSTANT ascii_V          , 56
+CONSTANT ascii_W          , 57
+CONSTANT ascii_X          , 58
+CONSTANT ascii_Y          , 59
+CONSTANT ascii_Z          , 5A
+CONSTANT ascii_LBKT       , 5B
+CONSTANT ascii_BKSLASH    , 5C
+CONSTANT ascii_RBKT       , 5D
+CONSTANT ascii_CARET      , 5E
+CONSTANT ascii_UNDER      , 5F
+CONSTANT ascii_TICK       , 60
+CONSTANT ascii_a          , 61
+CONSTANT ascii_b          , 62
+CONSTANT ascii_c          , 63
+CONSTANT ascii_d          , 64
+CONSTANT ascii_e          , 65
+CONSTANT ascii_f          , 66
+CONSTANT ascii_g          , 67
+CONSTANT ascii_h          , 68
+CONSTANT ascii_i          , 69
+CONSTANT ascii_j          , 6A
+CONSTANT ascii_k          , 6B
+CONSTANT ascii_l          , 6C
+CONSTANT ascii_m          , 6D
+CONSTANT ascii_n          , 6E
+CONSTANT ascii_o          , 6F
+CONSTANT ascii_p          , 70
+CONSTANT ascii_q          , 71
+CONSTANT ascii_r          , 72
+CONSTANT ascii_s          , 73
+CONSTANT ascii_t          , 74
+CONSTANT ascii_u          , 75
+CONSTANT ascii_v          , 76
+CONSTANT ascii_w          , 77
+CONSTANT ascii_x          , 78
+CONSTANT ascii_y          , 79
+CONSTANT ascii_z          , 7A
+CONSTANT ascii_LBRACE     , 7B
+CONSTANT ascii_VBAR       , 7C
+CONSTANT ascii_RBRACE     , 7D
+CONSTANT ascii_TILDE      , 7E
+CONSTANT ascii_DEL        , 7F
+
+;================================================================
+; SCRATCHPAD RAM LAYOUT
+; 00-3F : string buffer (64 bytes for printing)
+; 40    : current volume level (0-8)
+; 41    : paused flag (00=playing, 01=paused)
+; 42    : current playing message number (1-4)
+; 43    : temp register storage
+;================================================================
+
+;================================================================
+; PROGRAM START - COLD START / WELCOME MESSAGE
+;================================================================
+
+cold_start:
+                ; Set idle command, clear LEDs
+                LOAD    s0, CMD_IDLE
+                OUTPUT  s0, command_out
+                LOAD    s0, all_clear
+                OUTPUT  s0, leds
+
+                ; Set default volume to mid (4 out of 8)
+                LOAD    s0, 04
+                STORE   s0, 40
+
+                ; Print welcome banner
+                ; "================================" + CR LF
+                CALL    print_divider
+                ; "  AUDIO MESSAGE RECORDER v1.0  " + CR LF
+                CALL    print_title
+                ; "================================" + CR LF
+                CALL    print_divider
+                CALL    print_newline
+
+                ; Fall through to main menu
+                JUMP    main_menu
+
+;================================================================
+; MAIN MENU
+; Displays the 5 options and waits for input 1-5
+;================================================================
+
+main_menu:
+                ; Clear any pending command
+                LOAD    s0, CMD_IDLE
+                OUTPUT  s0, command_out
+
+                ; Print menu
+                CALL    print_newline
+                CALL    print_main_menu
+
+                ; Wait for valid input
+main_menu_wait:
+                CALL    wait_for_uart
+                ; s0 now has the character the user typed
+
+                ; Echo the character back so user can see it
+                CALL    send_uart_byte
+                CALL    print_newline
+
+                ; Branch based on input
+                COMPARE s0, ascii_1
+                JUMP    Z, go_play
+
+                COMPARE s0, ascii_2
+                JUMP    Z, go_record
+
+                COMPARE s0, ascii_3
+                JUMP    Z, go_delete
+
+                COMPARE s0, ascii_4
+                JUMP    Z, go_delete_all
+
+                COMPARE s0, ascii_5
+                JUMP    Z, go_volume
+
+                ; Invalid input
+                CALL    print_invalid
+                JUMP    main_menu_wait
+
+;================================================================
+; OPTION 1: PLAY A MESSAGE
+;================================================================
+
+go_play:
+                CALL    print_play_header
+
+                ; Show which messages are available
+                CALL    print_available_messages
+
+                ; Ask user to pick a message
+                CALL    print_select_msg_prompt
+
+play_wait_input:
+                CALL    wait_for_uart
+                CALL    send_uart_byte
+                CALL    print_newline
+
+                ; Go back to main menu
+                COMPARE s0, ascii_0
+                JUMP    Z, main_menu
+
+                ; Check valid message selection (1-4)
+                COMPARE s0, ascii_1
+                JUMP    Z, play_msg_1
+                COMPARE s0, ascii_2
+                JUMP    Z, play_msg_2
+                COMPARE s0, ascii_3
+                JUMP    Z, play_msg_3
+                COMPARE s0, ascii_4
+                JUMP    Z, play_msg_4
+
+                CALL    print_invalid
+                JUMP    play_wait_input
+
+play_msg_1:
+                LOAD    s0, 01
+                JUMP    play_send_cmd
+play_msg_2:
+                LOAD    s0, 02
+                JUMP    play_send_cmd
+play_msg_3:
+                LOAD    s0, 03
+                JUMP    play_send_cmd
+play_msg_4:
+                LOAD    s0, 04
+
+play_send_cmd:
+                ; Store message number and send play command
+                STORE   s0, 42
+                OUTPUT  s0, msg_num_out
+                LOAD    s0, CMD_PLAY
+                OUTPUT  s0, command_out
+
+                ; Show now playing message
+                CALL    print_now_playing
+                CALL    print_playback_controls
+
+                ; Initialize paused flag to not paused
+                LOAD    s0, 00
+                STORE   s0, 41
+
+                ; Light up LED 0 to show playing
+                LOAD    s0, 01
+                OUTPUT  s0, leds
+
+playback_loop:
+                ; Check for button presses during playback
+                INPUT   s0, switches
+
+                ; Check STOP button (bit2)
+                TEST    s0, BTN_STOP
+                JUMP    NZ, playback_stop
+
+                ; Check PAUSE/RESUME button (bit0)
+                TEST    s0, BTN_PAUSE
+                JUMP    NZ, playback_pause_toggle
+
+                ; Check SKIP button (bit1)
+                TEST    s0, BTN_SKIP
+                JUMP    NZ, playback_skip
+
+                ; Also check UART for 'p' pause, 's' skip, 'b' back
+                INPUT   s3, data_present
+                TEST    s3, 01
+                JUMP    Z, playback_loop        ; no UART input, keep looping
+
+                INPUT   s0, uart_data_rx
+                COMPARE s0, ascii_p
+                JUMP    Z, playback_pause_toggle
+                COMPARE s0, ascii_s
+                JUMP    Z, playback_skip
+                COMPARE s0, ascii_b
+                JUMP    Z, playback_stop
+
+                JUMP    playback_loop
+
+playback_pause_toggle:
+                ; Check current paused state
+                FETCH   s1, 41
+                COMPARE s1, 00
+                JUMP    Z, do_pause
+                JUMP    do_resume
+
+do_pause:
+                LOAD    s0, CMD_PAUSE
+                OUTPUT  s0, command_out
+                LOAD    s0, 01
+                STORE   s0, 41
+                ; Blink LED to show paused
+                LOAD    s0, 03
+                OUTPUT  s0, leds
+                CALL    print_paused
+                JUMP    playback_loop
+
+do_resume:
+                LOAD    s0, CMD_RESUME
+                OUTPUT  s0, command_out
+                LOAD    s0, 00
+                STORE   s0, 41
+                LOAD    s0, 01
+                OUTPUT  s0, leds
+                CALL    print_resumed
+                JUMP    playback_loop
+
+playback_skip:
+                LOAD    s0, CMD_SKIP
+                OUTPUT  s0, command_out
+                CALL    print_skipped
+                ; Small debounce delay
+                CALL    delay
+                JUMP    main_menu
+
+playback_stop:
+                LOAD    s0, CMD_STOP
+                OUTPUT  s0, command_out
+                LOAD    s0, all_clear
+                OUTPUT  s0, leds
+                CALL    print_stopped
+                CALL    delay
+                JUMP    main_menu
+
+;================================================================
+; OPTION 2: RECORD A MESSAGE
+;================================================================
+
+go_record:
+                ; Check if memory is full
+                INPUT   s0, status_in
+                TEST    s0, STATUS_MEM_FULL
+                JUMP    NZ, record_memory_full
+
+                CALL    print_record_header
+                CALL    print_record_instructions
+
+                ; Send record command
+                LOAD    s0, CMD_RECORD
+                OUTPUT  s0, command_out
+
+                ; Light LED 1 (recording indicator)
+                LOAD    s0, 02
+                OUTPUT  s0, leds
+
+record_loop:
+                ; Wait for stop button or 's' key to stop recording
+                INPUT   s0, switches
+                TEST    s0, BTN_STOP
+                JUMP    NZ, record_stop
+
+                INPUT   s3, data_present
+                TEST    s3, 01
+                JUMP    Z, record_loop
+
+                INPUT   s0, uart_data_rx
+                COMPARE s0, ascii_s
+                JUMP    Z, record_stop
+                COMPARE s0, ascii_b
+                JUMP    Z, record_stop
+
+                JUMP    record_loop
+
+record_stop:
+                LOAD    s0, CMD_STOP
+                OUTPUT  s0, command_out
+                LOAD    s0, all_clear
+                OUTPUT  s0, leds
+                CALL    print_record_saved
+                CALL    delay
+                JUMP    main_menu
+
+record_memory_full:
+                CALL    print_mem_full
+                CALL    delay
+                JUMP    main_menu
+
+;================================================================
+; OPTION 3: DELETE A MESSAGE
+;================================================================
+
+go_delete:
+                CALL    print_delete_header
+                CALL    print_available_messages
+                CALL    print_select_msg_prompt
+
+delete_wait_input:
+                CALL    wait_for_uart
+                CALL    send_uart_byte
+                CALL    print_newline
+
+                COMPARE s0, ascii_0
+                JUMP    Z, main_menu
+
+                COMPARE s0, ascii_1
+                JUMP    Z, delete_msg_1
+                COMPARE s0, ascii_2
+                JUMP    Z, delete_msg_2
+                COMPARE s0, ascii_3
+                JUMP    Z, delete_msg_3
+                COMPARE s0, ascii_4
+                JUMP    Z, delete_msg_4
+
+                CALL    print_invalid
+                JUMP    delete_wait_input
+
+delete_msg_1:
+                LOAD    s0, 01
+                JUMP    delete_confirm
+delete_msg_2:
+                LOAD    s0, 02
+                JUMP    delete_confirm
+delete_msg_3:
+                LOAD    s0, 03
+                JUMP    delete_confirm
+delete_msg_4:
+                LOAD    s0, 04
+
+delete_confirm:
+                ; Store message number for deletion
+                STORE   s0, 43
+                CALL    print_confirm_prompt
+
+                CALL    wait_for_uart
+                CALL    send_uart_byte
+                CALL    print_newline
+
+                COMPARE s0, ascii_Y
+                JUMP    Z, delete_execute
+                COMPARE s0, ascii_y
+                JUMP    Z, delete_execute
+
+                ; User said no
+                CALL    print_cancelled
+                JUMP    main_menu
+
+delete_execute:
+                FETCH   s0, 43
+                OUTPUT  s0, msg_num_out
+                LOAD    s0, CMD_DELETE
+                OUTPUT  s0, command_out
+                CALL    print_deleted
+                CALL    delay
+                JUMP    main_menu
+
+;================================================================
+; OPTION 4: DELETE ALL MESSAGES
+;================================================================
+
+go_delete_all:
+                CALL    print_delete_all_header
+                CALL    print_confirm_prompt
+
+                CALL    wait_for_uart
+                CALL    send_uart_byte
+                CALL    print_newline
+
+                COMPARE s0, ascii_Y
+                JUMP    Z, delete_all_execute
+                COMPARE s0, ascii_y
+                JUMP    Z, delete_all_execute
+
+                CALL    print_cancelled
+                JUMP    main_menu
+
+delete_all_execute:
+                LOAD    s0, CMD_DELETE_ALL
+                OUTPUT  s0, command_out
+                CALL    print_all_deleted
+                CALL    delay
+                JUMP    main_menu
+
+;================================================================
+; OPTION 5: VOLUME CONTROL
+;================================================================
+
+go_volume:
+                CALL    print_volume_header
+                CALL    print_volume_bar
+                CALL    print_volume_controls
+
+volume_loop:
+                ; Check buttons
+                INPUT   s0, switches
+
+                TEST    s0, BTN_VOL_UP
+                JUMP    NZ, volume_up
+
+                TEST    s0, BTN_VOL_DOWN
+                JUMP    NZ, volume_down
+
+                TEST    s0, BTN_STOP
+                JUMP    NZ, main_menu
+
+                ; Check UART
+                INPUT   s3, data_present
+                TEST    s3, 01
+                JUMP    Z, volume_loop
+
+                INPUT   s0, uart_data_rx
+                COMPARE s0, ascii_u
+                JUMP    Z, volume_up
+                COMPARE s0, ascii_d
+                JUMP    Z, volume_down
+                COMPARE s0, ascii_b
+                JUMP    Z, main_menu
+
+                JUMP    volume_loop
+
+volume_up:
+                FETCH   s1, 40
+                COMPARE s1, 08          ; Max volume = 8
+                JUMP    Z, volume_loop  ; Already at max
+                ADD     s1, 01
+                STORE   s1, 40
+                LOAD    s0, CMD_VOL_UP
+                OUTPUT  s0, command_out
+                CALL    delay
+                CALL    print_volume_bar
+                JUMP    volume_loop
+
+volume_down:
+                FETCH   s1, 40
+                COMPARE s1, 00          ; Min volume = 0
+                JUMP    Z, volume_loop  ; Already at min
+                SUB     s1, 01
+                STORE   s1, 40
+                LOAD    s0, CMD_VOL_DOWN
+                OUTPUT  s0, command_out
+                CALL    delay
+                CALL    print_volume_bar
+                JUMP    volume_loop
+
+;================================================================
+; HELPER SUBROUTINES
+;================================================================
+
+; Wait for one byte from UART, return in s0
+wait_for_uart:
+                INPUT   s2, data_present
+                TEST    s2, 01
+                JUMP    Z, wait_for_uart
+                INPUT   s0, uart_data_rx
+                RETURN
+
+; Send one byte (in s0) to UART
+send_uart_byte:
+                INPUT   s2, buffer_full
+                TEST    s2, 01
+                JUMP    NZ, send_uart_byte
+                OUTPUT  s0, uart_data_tx
+                RETURN
+
+; Print CR + LF (move to next line)
+print_newline:
+                LOAD    s0, ascii_CR
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LF
+                CALL    send_uart_byte
+                RETURN
+
+; Simple delay loop (for debouncing buttons)
+delay:
+                LOAD    sA, FF
+delay_outer:
+                LOAD    sB, FF
+delay_inner:
+                SUB     sB, 01
+                JUMP    NZ, delay_inner
+                SUB     sA, 01
+                JUMP    NZ, delay_outer
+                RETURN
+
+;================================================================
+; PRINT SUBROUTINES
+; Each subroutine sends a specific string to the terminal
+;================================================================
+
+; "================================" + newline
+print_divider:
+                LOAD    s0, ascii_EQUAL
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "  AUDIO MESSAGE RECORDER v1.0" + newline
+print_title:
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_U
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_I
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_G
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_C
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_v
+                CALL    send_uart_byte
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_0
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; Prints the main menu
+print_main_menu:
+                ; "MAIN MENU:"
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_I
+                CALL    send_uart_byte
+                LOAD    s0, ascii_N
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_N
+                CALL    send_uart_byte
+                LOAD    s0, ascii_U
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "1) Play a message"
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_P
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_y
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "2) Record a message"
+                LOAD    s0, ascii_2
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_r
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "3) Delete a message"
+                LOAD    s0, ascii_3
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "4) Delete all messages"
+                LOAD    s0, ascii_4
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "5) Volume control"
+                LOAD    s0, ascii_5
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_V
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_r
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; "Select [1-5]: "
+                CALL    print_newline
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                LOAD    s0, ascii_5
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                RETURN
+
+; "-- PLAY MESSAGE --" + newline
+print_play_header:
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_P
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_Y
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_G
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; Reads status port and prints available message slots
+print_available_messages:
+                INPUT   s5, status_in
+                ; "Messages: "
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                CALL    print_newline
+                ; Check and print each slot
+                TEST    s5, STATUS_MSG1
+                JUMP    Z, skip_msg1
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                CALL    print_newline
+skip_msg1:
+                TEST    s5, STATUS_MSG2
+                JUMP    Z, skip_msg2
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_2
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_2
+                CALL    send_uart_byte
+                CALL    print_newline
+skip_msg2:
+                TEST    s5, STATUS_MSG3
+                JUMP    Z, skip_msg3
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_3
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_3
+                CALL    send_uart_byte
+                CALL    print_newline
+skip_msg3:
+                TEST    s5, STATUS_MSG4
+                JUMP    Z, skip_msg4
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_4
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RPAREN
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_4
+                CALL    send_uart_byte
+                CALL    print_newline
+skip_msg4:
+                RETURN
+
+; "Select [1-4] or 0 to go back: "
+print_select_msg_prompt:
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_1
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                LOAD    s0, ascii_4
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_0
+                CALL    send_uart_byte
+                LOAD    s0, ascii_EQUAL
+                CALL    send_uart_byte
+                LOAD    s0, ascii_b
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_k
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                RETURN
+
+; "Now playing... [p]ause [s]kip [b]ack"
+print_now_playing:
+                LOAD    s0, ascii_N
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_w
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_y
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "[p]ause [s]kip [b]ack to menu"
+print_playback_controls:
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_k
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_b
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_b
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_k
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Paused."
+print_paused:
+                LOAD    s0, ascii_P
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Resumed."
+print_resumed:
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Skipped."
+print_skipped:
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_k
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Stopped."
+print_stopped:
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "-- RECORD MESSAGE --"
+print_record_header:
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_C
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_G
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Recording... press [s] or STOP btn to stop"
+print_record_instructions:
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_r
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_g
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_s
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Saved!"
+print_record_saved:
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_v
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_EXCLAIM
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Memory full!"
+print_mem_full:
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_r
+                CALL    send_uart_byte
+                LOAD    s0, ascii_y
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_f
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_EXCLAIM
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "-- DELETE MESSAGE --"
+print_delete_header:
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_T
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_S
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_G
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "-- DELETE ALL --"
+print_delete_all_header:
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_T
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Confirm? [Y/N]: "
+print_confirm_prompt:
+                LOAD    s0, ascii_C
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_f
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_r
+                CALL    send_uart_byte
+                LOAD    s0, ascii_m
+                CALL    send_uart_byte
+                LOAD    s0, ascii_QUESTION
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_Y
+                CALL    send_uart_byte
+                LOAD    s0, ascii_FWDSLASH
+                CALL    send_uart_byte
+                LOAD    s0, ascii_N
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                RETURN
+
+; "Deleted."
+print_deleted:
+                LOAD    s0, ascii_D
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "All messages deleted."
+print_all_deleted:
+                LOAD    s0, ascii_A
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_t
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Cancelled."
+print_cancelled:
+                LOAD    s0, ascii_C
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_e
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "Invalid input."
+print_invalid:
+                LOAD    s0, ascii_I
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_v
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_i
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_PERIOD
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "-- VOLUME CONTROL --"
+print_volume_header:
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_V
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_U
+                CALL    send_uart_byte
+                LOAD    s0, ascii_M
+                CALL    send_uart_byte
+                LOAD    s0, ascii_E
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_C
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_N
+                CALL    send_uart_byte
+                LOAD    s0, ascii_T
+                CALL    send_uart_byte
+                LOAD    s0, ascii_R
+                CALL    send_uart_byte
+                LOAD    s0, ascii_O
+                CALL    send_uart_byte
+                LOAD    s0, ascii_L
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_MINUS
+                CALL    send_uart_byte
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; Prints "Vol: [====    ] " based on current level in scratchpad 40
+print_volume_bar:
+                LOAD    s0, ascii_V
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_l
+                CALL    send_uart_byte
+                LOAD    s0, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+
+                FETCH   sC, 40          ; sC = current volume (0-8)
+                LOAD    sD, 00          ; sD = bar position counter
+
+vol_bar_loop:
+                COMPARE sD, sC
+                JUMP    NC, vol_bar_empty
+                LOAD    s0, ascii_EQUAL
+                CALL    send_uart_byte
+                ADD     sD, 01
+                COMPARE sD, 08
+                JUMP    NZ, vol_bar_loop
+                JUMP    vol_bar_done
+
+vol_bar_empty:
+                COMPARE sD, 08
+                JUMP    Z, vol_bar_done
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                ADD     sD, 01
+                JUMP    vol_bar_empty
+
+vol_bar_done:
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+; "[u]p [d]own [b]ack"
+print_volume_controls:
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_u
+                CALL    send_uart_byte
+                LOAD    s0, ascii_p
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_d
+                CALL    send_uart_byte
+                LOAD    s0, ascii_o
+                CALL    send_uart_byte
+                LOAD    s0, ascii_w
+                CALL    send_uart_byte
+                LOAD    s0, ascii_n
+                CALL    send_uart_byte
+                LOAD    s0, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s0, ascii_LBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_b
+                CALL    send_uart_byte
+                LOAD    s0, ascii_RBKT
+                CALL    send_uart_byte
+                LOAD    s0, ascii_b
+                CALL    send_uart_byte
+                LOAD    s0, ascii_a
+                CALL    send_uart_byte
+                LOAD    s0, ascii_c
+                CALL    send_uart_byte
+                LOAD    s0, ascii_k
+                CALL    send_uart_byte
+                CALL    print_newline
+                RETURN
+
+;================================================================
+; END OF PROGRAM
+;================================================================
