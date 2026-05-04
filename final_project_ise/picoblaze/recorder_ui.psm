@@ -1,0 +1,1941 @@
+;===============================================================
+; CDA 4203L Final Project - Voice Memo Station UI
+; PicoBlaze KCPSM6 Assembly
+;===============================================================
+
+CONSTANT user_controls     , 00
+CONSTANT dip_inputs        , 01
+CONSTANT uart_data_rx      , 02
+CONSTANT uart_data_tx      , 03
+CONSTANT data_present      , 04
+CONSTANT buffer_full       , 05
+CONSTANT recorder_status   , 10
+CONSTANT selected_message  , 11
+CONSTANT volume_setting    , 12
+CONSTANT control_port      , 13
+CONSTANT board_status      , 14
+CONSTANT audio_debug_ctrl  , 21
+
+CONSTANT cmd_play          , 01
+CONSTANT cmd_record        , 02
+CONSTANT cmd_delete        , 03
+CONSTANT cmd_delete_all    , 04
+CONSTANT cmd_volume        , 05
+CONSTANT cmd_stop          , 06
+CONSTANT cmd_pause_resume  , 07
+
+CONSTANT ctl_clear_status  , 01
+
+CONSTANT stat_busy         , 01
+CONSTANT stat_recording    , 02
+CONSTANT stat_playing      , 04
+CONSTANT stat_paused       , 08
+CONSTANT stat_done         , 10
+CONSTANT stat_invalid      , 20
+
+CONSTANT ui_idle           , 00
+CONSTANT ui_recording      , 01
+CONSTANT ui_playing        , 02
+CONSTANT ui_paused         , 03
+CONSTANT ui_busy           , 04
+CONSTANT ui_done           , 05
+CONSTANT ui_rejected       , 06
+CONSTANT ui_slot_updated   , 07
+CONSTANT ui_volume_updated , 08
+CONSTANT ui_command_sent   , 09
+CONSTANT ui_unknown_key    , 0A
+CONSTANT ui_monitor_updated, 0B
+CONSTANT ui_tone_updated   , 0C
+
+CONSTANT focus_slot        , 00
+CONSTANT focus_volume      , 01
+
+CONSTANT ascii_ESC         , 1B
+CONSTANT ascii_HASH        , 23
+CONSTANT ascii_SPACE       , 20
+CONSTANT ascii_MINUS       , 2D
+CONSTANT ascii_SLASH       , 2F
+CONSTANT ascii_0           , 30
+CONSTANT ascii_1           , 31
+CONSTANT ascii_2           , 32
+CONSTANT ascii_3           , 33
+CONSTANT ascii_4           , 34
+CONSTANT ascii_5           , 35
+CONSTANT ascii_6           , 36
+CONSTANT ascii_7           , 37
+CONSTANT ascii_8           , 38
+CONSTANT ascii_9           , 39
+CONSTANT ascii_COLON       , 3A
+CONSTANT ascii_EQUALS      , 3D
+CONSTANT ascii_A           , 41
+CONSTANT ascii_B           , 42
+CONSTANT ascii_C           , 43
+CONSTANT ascii_D           , 44
+CONSTANT ascii_E           , 45
+CONSTANT ascii_F           , 46
+CONSTANT ascii_H           , 48
+CONSTANT ascii_I           , 49
+CONSTANT ascii_J           , 4A
+CONSTANT ascii_K           , 4B
+CONSTANT ascii_L           , 4C
+CONSTANT ascii_M           , 4D
+CONSTANT ascii_N           , 4E
+CONSTANT ascii_O           , 4F
+CONSTANT ascii_P           , 50
+CONSTANT ascii_Q           , 51
+CONSTANT ascii_R           , 52
+CONSTANT ascii_S           , 53
+CONSTANT ascii_T           , 54
+CONSTANT ascii_U           , 55
+CONSTANT ascii_V           , 56
+CONSTANT ascii_W           , 57
+CONSTANT ascii_X           , 58
+CONSTANT ascii_Y           , 59
+CONSTANT ascii_Z           , 5A
+CONSTANT ascii_LBRACK      , 5B
+CONSTANT ascii_RBRACK      , 5D
+CONSTANT ascii_a           , 61
+CONSTANT ascii_c           , 63
+CONSTANT ascii_d           , 64
+CONSTANT ascii_e           , 65
+CONSTANT ascii_f           , 66
+CONSTANT ascii_g           , 67
+CONSTANT ascii_h           , 68
+CONSTANT ascii_i           , 69
+CONSTANT ascii_j           , 6A
+CONSTANT ascii_k           , 6B
+CONSTANT ascii_l           , 6C
+CONSTANT ascii_m           , 6D
+CONSTANT ascii_n           , 6E
+CONSTANT ascii_o           , 6F
+CONSTANT ascii_p           , 70
+CONSTANT ascii_q           , 71
+CONSTANT ascii_r           , 72
+CONSTANT ascii_s           , 73
+CONSTANT ascii_t           , 74
+CONSTANT ascii_u           , 75
+CONSTANT ascii_v           , 76
+CONSTANT ascii_w           , 77
+CONSTANT ascii_x           , 78
+CONSTANT ascii_y           , 79
+CONSTANT ascii_z           , 7A
+CONSTANT ascii_CR          , 0D
+CONSTANT ascii_LF          , 0A
+
+cold_start:
+                CALL    init_ui_state
+                CALL    redraw_screen
+
+main_loop:
+                CALL    check_background_status
+                INPUT   s1, data_present
+                TEST    s1, 01
+                JUMP    Z, main_loop
+
+                INPUT   s6, uart_data_rx
+
+                COMPARE s6, ascii_CR
+                JUMP    Z, main_loop
+                COMPARE s6, ascii_LF
+                JUMP    Z, main_loop
+
+                COMPARE s6, ascii_1
+                JUMP    Z, do_play
+                COMPARE s6, ascii_2
+                JUMP    Z, do_record
+                COMPARE s6, ascii_3
+                JUMP    Z, do_stop
+                COMPARE s6, ascii_4
+                JUMP    Z, do_pause_resume
+                COMPARE s6, ascii_5
+                JUMP    Z, do_delete
+                COMPARE s6, ascii_6
+                JUMP    Z, do_delete_all
+                COMPARE s6, ascii_LBRACK
+                JUMP    Z, slot_left_key
+                COMPARE s6, ascii_RBRACK
+                JUMP    Z, slot_right_key
+                COMPARE s6, ascii_MINUS
+                JUMP    Z, volume_down
+                COMPARE s6, ascii_EQUALS
+                JUMP    Z, volume_up
+                COMPARE s6, ascii_SPACE
+                JUMP    Z, redraw_only
+
+                LOAD    sB, ui_unknown_key
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+focus_up:
+                JUMP    main_loop
+
+focus_down:
+                JUMP    main_loop
+
+adjust_left:
+                JUMP    main_loop
+
+adjust_right:
+                JUMP    main_loop
+
+slot_left_key:
+                JUMP    slot_left
+
+slot_right_key:
+                JUMP    slot_right
+
+slot_left:
+                COMPARE s8, 00
+                JUMP    Z, main_loop
+                COMPARE s8, 01
+                JUMP    Z, slot_left_to_0
+                COMPARE s8, 02
+                JUMP    Z, slot_left_to_1
+                LOAD    s8, 02
+                JUMP    slot_left_done
+slot_left_to_0:
+                LOAD    s8, 00
+                JUMP    slot_left_done
+slot_left_to_1:
+                LOAD    s8, 01
+slot_left_done:
+                CALL    write_selected_message_reg
+                JUMP    main_loop
+
+slot_right:
+                COMPARE s8, 03
+                JUMP    Z, main_loop
+                COMPARE s8, 00
+                JUMP    Z, slot_right_to_1
+                COMPARE s8, 01
+                JUMP    Z, slot_right_to_2
+                LOAD    s8, 03
+                JUMP    slot_right_done
+slot_right_to_1:
+                LOAD    s8, 01
+                JUMP    slot_right_done
+slot_right_to_2:
+                LOAD    s8, 02
+slot_right_done:
+                CALL    write_selected_message_reg
+                JUMP    main_loop
+
+volume_down:
+                COMPARE s9, 00
+                JUMP    Z, main_loop
+                COMPARE s9, 01
+                JUMP    Z, volume_down_to_0
+                COMPARE s9, 02
+                JUMP    Z, volume_down_to_1
+                COMPARE s9, 03
+                JUMP    Z, volume_down_to_2
+                COMPARE s9, 04
+                JUMP    Z, volume_down_to_3
+                COMPARE s9, 05
+                JUMP    Z, volume_down_to_4
+                COMPARE s9, 06
+                JUMP    Z, volume_down_to_5
+                COMPARE s9, 07
+                JUMP    Z, volume_down_to_6
+                COMPARE s9, 08
+                JUMP    Z, volume_down_to_7
+                COMPARE s9, 09
+                JUMP    Z, volume_down_to_8
+                COMPARE s9, 0A
+                JUMP    Z, volume_down_to_9
+                COMPARE s9, 0B
+                JUMP    Z, volume_down_to_A
+                COMPARE s9, 0C
+                JUMP    Z, volume_down_to_B
+                COMPARE s9, 0D
+                JUMP    Z, volume_down_to_C
+                COMPARE s9, 0E
+                JUMP    Z, volume_down_to_D
+                LOAD    s9, 0E
+                JUMP    volume_down_done
+volume_down_to_0:
+                LOAD    s9, 00
+                JUMP    volume_down_done
+volume_down_to_1:
+                LOAD    s9, 01
+                JUMP    volume_down_done
+volume_down_to_2:
+                LOAD    s9, 02
+                JUMP    volume_down_done
+volume_down_to_3:
+                LOAD    s9, 03
+                JUMP    volume_down_done
+volume_down_to_4:
+                LOAD    s9, 04
+                JUMP    volume_down_done
+volume_down_to_5:
+                LOAD    s9, 05
+                JUMP    volume_down_done
+volume_down_to_6:
+                LOAD    s9, 06
+                JUMP    volume_down_done
+volume_down_to_7:
+                LOAD    s9, 07
+                JUMP    volume_down_done
+volume_down_to_8:
+                LOAD    s9, 08
+                JUMP    volume_down_done
+volume_down_to_9:
+                LOAD    s9, 09
+                JUMP    volume_down_done
+volume_down_to_A:
+                LOAD    s9, 0A
+                JUMP    volume_down_done
+volume_down_to_B:
+                LOAD    s9, 0B
+                JUMP    volume_down_done
+volume_down_to_C:
+                LOAD    s9, 0C
+                JUMP    volume_down_done
+volume_down_to_D:
+                LOAD    s9, 0D
+volume_down_done:
+                CALL    apply_volume_update
+                JUMP    main_loop
+
+volume_up:
+                COMPARE s9, 0F
+                JUMP    Z, main_loop
+                COMPARE s9, 00
+                JUMP    Z, volume_up_to_1
+                COMPARE s9, 01
+                JUMP    Z, volume_up_to_2
+                COMPARE s9, 02
+                JUMP    Z, volume_up_to_3
+                COMPARE s9, 03
+                JUMP    Z, volume_up_to_4
+                COMPARE s9, 04
+                JUMP    Z, volume_up_to_5
+                COMPARE s9, 05
+                JUMP    Z, volume_up_to_6
+                COMPARE s9, 06
+                JUMP    Z, volume_up_to_7
+                COMPARE s9, 07
+                JUMP    Z, volume_up_to_8
+                COMPARE s9, 08
+                JUMP    Z, volume_up_to_9
+                COMPARE s9, 09
+                JUMP    Z, volume_up_to_A
+                COMPARE s9, 0A
+                JUMP    Z, volume_up_to_B
+                COMPARE s9, 0B
+                JUMP    Z, volume_up_to_C
+                COMPARE s9, 0C
+                JUMP    Z, volume_up_to_D
+                COMPARE s9, 0D
+                JUMP    Z, volume_up_to_E
+                LOAD    s9, 0F
+                JUMP    volume_up_done
+volume_up_to_1:
+                LOAD    s9, 01
+                JUMP    volume_up_done
+volume_up_to_2:
+                LOAD    s9, 02
+                JUMP    volume_up_done
+volume_up_to_3:
+                LOAD    s9, 03
+                JUMP    volume_up_done
+volume_up_to_4:
+                LOAD    s9, 04
+                JUMP    volume_up_done
+volume_up_to_5:
+                LOAD    s9, 05
+                JUMP    volume_up_done
+volume_up_to_6:
+                LOAD    s9, 06
+                JUMP    volume_up_done
+volume_up_to_7:
+                LOAD    s9, 07
+                JUMP    volume_up_done
+volume_up_to_8:
+                LOAD    s9, 08
+                JUMP    volume_up_done
+volume_up_to_9:
+                LOAD    s9, 09
+                JUMP    volume_up_done
+volume_up_to_A:
+                LOAD    s9, 0A
+                JUMP    volume_up_done
+volume_up_to_B:
+                LOAD    s9, 0B
+                JUMP    volume_up_done
+volume_up_to_C:
+                LOAD    s9, 0C
+                JUMP    volume_up_done
+volume_up_to_D:
+                LOAD    s9, 0D
+                JUMP    volume_up_done
+volume_up_to_E:
+                LOAD    s9, 0E
+volume_up_done:
+                CALL    apply_volume_update
+                JUMP    main_loop
+
+do_play:
+                CALL    write_selected_message_reg
+                CALL    write_volume_reg
+                LOAD    s4, cmd_play
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+do_record:
+                CALL    write_selected_message_reg
+                CALL    write_volume_reg
+                LOAD    s4, cmd_record
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+do_delete:
+                CALL    write_selected_message_reg
+                LOAD    s4, cmd_delete
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+do_delete_all:
+                LOAD    s4, cmd_delete_all
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+do_stop:
+                LOAD    s4, cmd_stop
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+do_pause_resume:
+                LOAD    s4, cmd_pause_resume
+                CALL    issue_command
+                LOAD    sB, ui_command_sent
+                CALL    set_status_and_redraw
+                JUMP    main_loop
+
+redraw_only:
+                CALL    redraw_screen
+                JUMP    main_loop
+
+toggle_monitor:
+                COMPARE sC, 00
+                JUMP    Z, monitor_on
+                LOAD    sC, 00
+                JUMP    monitor_done
+monitor_on:
+                LOAD    sC, 01
+monitor_done:
+                CALL    write_audio_debug_reg
+                JUMP    main_loop
+
+toggle_tone:
+                COMPARE sD, 00
+                JUMP    Z, tone_on
+                LOAD    sD, 00
+                JUMP    tone_done
+tone_on:
+                LOAD    sD, 01
+tone_done:
+                CALL    write_audio_debug_reg
+                JUMP    main_loop
+
+init_ui_state:
+                LOAD    s7, focus_slot
+                INPUT   s8, selected_message
+                AND     s8, 03
+                INPUT   s9, volume_setting
+                AND     s9, 0F
+                LOAD    sC, 00
+                LOAD    sD, 00
+                LOAD    sA, ui_idle
+                CALL    write_selected_message_reg
+                CALL    write_volume_reg
+                CALL    write_audio_debug_reg
+                RETURN
+
+apply_volume_update:
+                CALL    write_volume_reg
+                INPUT   s1, recorder_status
+                TEST    s1, stat_recording
+                RETURN  NZ
+                TEST    s1, stat_playing
+                JUMP    NZ, apply_volume_command
+                TEST    s1, stat_paused
+                JUMP    NZ, apply_volume_command
+                TEST    s1, stat_busy
+                RETURN  NZ
+apply_volume_command:
+                LOAD    s4, cmd_volume
+                CALL    issue_command
+                RETURN
+
+write_selected_message_reg:
+                LOAD    s4, s8
+                OUTPUT  s4, selected_message
+                RETURN
+
+write_volume_reg:
+                LOAD    s4, s9
+                OUTPUT  s4, volume_setting
+                RETURN
+
+write_audio_debug_reg:
+                COMPARE sC, 00
+                JUMP    Z, audio_debug_monitor_off
+                COMPARE sD, 00
+                JUMP    Z, audio_debug_01
+                LOAD    s4, 03
+                JUMP    audio_debug_write
+audio_debug_monitor_off:
+                COMPARE sD, 00
+                JUMP    Z, audio_debug_00
+                LOAD    s4, 02
+                JUMP    audio_debug_write
+audio_debug_00:
+                LOAD    s4, 00
+                JUMP    audio_debug_write
+audio_debug_01:
+                LOAD    s4, 01
+audio_debug_write:
+                OUTPUT  s4, audio_debug_ctrl
+                RETURN
+
+issue_command:
+                LOAD    s5, ctl_clear_status
+                OUTPUT  s5, control_port
+                OUTPUT  s4, recorder_status
+                RETURN
+
+clear_hw_status:
+                LOAD    s5, ctl_clear_status
+                OUTPUT  s5, control_port
+                RETURN
+
+check_background_status:
+                INPUT   s1, recorder_status
+                TEST    s1, stat_invalid
+                JUMP    NZ, background_rejected
+                TEST    s1, stat_done
+                JUMP    NZ, background_done
+                TEST    s1, stat_paused
+                JUMP    NZ, background_paused
+                TEST    s1, stat_playing
+                JUMP    NZ, background_playing
+                TEST    s1, stat_recording
+                JUMP    NZ, background_recording
+                TEST    s1, stat_busy
+                JUMP    NZ, background_busy
+
+                COMPARE sA, ui_slot_updated
+                JUMP    NC, background_return
+                COMPARE sA, ui_idle
+                JUMP    Z, background_return
+                LOAD    sB, ui_idle
+                CALL    set_status_and_redraw
+background_return:
+                RETURN
+
+background_rejected:
+                LOAD    sB, ui_rejected
+                CALL    clear_hw_status
+                CALL    set_status_and_redraw
+                RETURN
+
+background_done:
+                LOAD    sB, ui_done
+                CALL    clear_hw_status
+                CALL    set_status_and_redraw
+                RETURN
+
+background_paused:
+                LOAD    sB, ui_paused
+                CALL    set_status_and_redraw
+                RETURN
+
+background_playing:
+                LOAD    sB, ui_playing
+                CALL    set_status_and_redraw
+                RETURN
+
+background_recording:
+                LOAD    sB, ui_recording
+                CALL    set_status_and_redraw
+                RETURN
+
+background_busy:
+                LOAD    sB, ui_busy
+                CALL    set_status_and_redraw
+                RETURN
+
+set_status_and_redraw:
+                COMPARE sA, sB
+                RETURN  Z
+                LOAD    sA, sB
+                CALL    print_compact_update
+                RETURN
+
+redraw_screen:
+                CALL    clear_screen
+                CALL    print_header
+                CALL    print_status_line
+                CALL    print_slot_line
+                CALL    print_volume_line
+                CALL    print_audio_debug_line
+                CALL    print_focus_line
+                CALL    print_help_line_1
+                CALL    print_help_line_2
+                CALL    print_help_line_3
+                CALL    print_help_line_4
+                RETURN
+
+print_compact_update:
+                CALL    send_crlf
+                CALL    print_status_line_inline
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_slot_line_inline
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_volume_line_inline
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_audio_debug_line_inline
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_focus_line_inline
+                CALL    send_crlf
+                RETURN
+
+clear_screen:
+                LOAD    s3, ascii_ESC
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_J
+                CALL    send_uart_byte
+                LOAD    s3, ascii_ESC
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_H
+                CALL    send_uart_byte
+                RETURN
+
+print_header:
+                LOAD    s3, ascii_V
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_i
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_M
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_m
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_S
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_i
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                CALL    send_crlf
+                RETURN
+
+print_status_line:
+                CALL    print_status_line_inline
+                CALL    send_crlf
+                RETURN
+
+print_status_line_inline:
+                LOAD    s3, ascii_S
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_status_text
+                RETURN
+
+print_slot_line:
+                CALL    print_slot_line_inline
+                CALL    send_crlf
+                RETURN
+
+print_slot_line_inline:
+                LOAD    s3, ascii_T
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_k
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_slot_value
+                RETURN
+
+print_volume_line:
+                CALL    print_volume_line_inline
+                CALL    send_crlf
+                RETURN
+
+print_volume_line_inline:
+                LOAD    s3, ascii_L
+                CALL    send_uart_byte
+                LOAD    s3, ascii_v
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_volume_value
+                LOAD    s3, ascii_SLASH
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_5
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                CALL    print_volume_bar
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                RETURN
+
+print_focus_line:
+                CALL    print_focus_line_inline
+                CALL    send_crlf
+                RETURN
+
+print_focus_line_inline:
+                LOAD    s3, ascii_C
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                COMPARE s7, focus_slot
+                JUMP    Z, print_focus_slot_inline
+                LOAD    s3, ascii_V
+                CALL    send_uart_byte
+                LOAD    s3, ascii_O
+                CALL    send_uart_byte
+                LOAD    s3, ascii_L
+                CALL    send_uart_byte
+                RETURN
+
+print_audio_debug_line:
+                CALL    print_audio_debug_line_inline
+                CALL    send_crlf
+                RETURN
+
+print_audio_debug_line_inline:
+                LOAD    s3, ascii_A
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_i
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_COLON
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_M
+                CALL    send_uart_byte
+                LOAD    s3, ascii_O
+                CALL    send_uart_byte
+                LOAD    s3, ascii_N
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_monitor_state
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_T
+                CALL    send_uart_byte
+                LOAD    s3, ascii_O
+                CALL    send_uart_byte
+                LOAD    s3, ascii_N
+                CALL    send_uart_byte
+                LOAD    s3, ascii_E
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                CALL    print_tone_state
+                RETURN
+
+print_focus_slot:
+                CALL    print_focus_slot_inline
+                CALL    send_crlf
+                RETURN
+
+print_focus_slot_inline:
+                LOAD    s3, ascii_C
+                CALL    send_uart_byte
+                LOAD    s3, ascii_H
+                CALL    send_uart_byte
+                LOAD    s3, ascii_A
+                CALL    send_uart_byte
+                LOAD    s3, ascii_N
+                CALL    send_uart_byte
+                RETURN
+
+print_slot_value:
+                COMPARE s8, 00
+                JUMP    Z, print_slot_value_0
+                COMPARE s8, 01
+                JUMP    Z, print_slot_value_1
+                COMPARE s8, 02
+                JUMP    Z, print_slot_value_2
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+
+print_slot_value_0:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                RETURN
+
+print_slot_value_1:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                RETURN
+
+print_slot_value_2:
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                RETURN
+
+print_help_line_1:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_P
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_y
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_R
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_S
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_p
+                CALL    send_uart_byte
+                CALL    send_crlf
+                RETURN
+
+print_help_line_2:
+                LOAD    s3, ascii_4
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_P
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_s
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_5
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_D
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_6
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_A
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                CALL    send_crlf
+                RETURN
+
+print_help_line_3:
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_T
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_k
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_MINUS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_V
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                CALL    send_crlf
+                RETURN
+
+print_help_line_4:
+                LOAD    s3, ascii_S
+                CALL    send_uart_byte
+                LOAD    s3, ascii_P
+                CALL    send_uart_byte
+                LOAD    s3, ascii_C
+                CALL    send_uart_byte
+                LOAD    s3, ascii_EQUALS
+                CALL    send_uart_byte
+                LOAD    s3, ascii_R
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_f
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_s
+                CALL    send_uart_byte
+                LOAD    s3, ascii_h
+                CALL    send_uart_byte
+                CALL    send_crlf
+                RETURN
+
+print_status_text:
+                COMPARE sA, ui_recording
+                JUMP    Z, status_recording
+                COMPARE sA, ui_playing
+                JUMP    Z, status_playing
+                COMPARE sA, ui_paused
+                JUMP    Z, status_paused
+                COMPARE sA, ui_busy
+                JUMP    Z, status_busy
+                COMPARE sA, ui_done
+                JUMP    Z, status_done
+                COMPARE sA, ui_rejected
+                JUMP    Z, status_rejected
+                COMPARE sA, ui_slot_updated
+                JUMP    Z, status_slot_updated
+                COMPARE sA, ui_volume_updated
+                JUMP    Z, status_volume_updated
+                COMPARE sA, ui_command_sent
+                JUMP    Z, status_command_sent
+                COMPARE sA, ui_unknown_key
+                JUMP    Z, status_unknown_key
+                COMPARE sA, ui_monitor_updated
+                JUMP    Z, status_monitor_updated
+                COMPARE sA, ui_tone_updated
+                JUMP    Z, status_tone_updated
+status_idle:
+                LOAD    s3, ascii_I
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                RETURN
+status_recording:
+                LOAD    s3, ascii_R
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_i
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_g
+                CALL    send_uart_byte
+                RETURN
+status_playing:
+                LOAD    s3, ascii_P
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_y
+                CALL    send_uart_byte
+                LOAD    s3, ascii_i
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_g
+                CALL    send_uart_byte
+                RETURN
+status_paused:
+                LOAD    s3, ascii_P
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_s
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                RETURN
+status_busy:
+                LOAD    s3, ascii_B
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_s
+                CALL    send_uart_byte
+                LOAD    s3, ascii_y
+                CALL    send_uart_byte
+                RETURN
+status_done:
+                LOAD    s3, ascii_D
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                RETURN
+status_rejected:
+                LOAD    s3, ascii_R
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_j
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                RETURN
+status_slot_updated:
+                LOAD    s3, ascii_T
+                CALL    send_uart_byte
+                LOAD    s3, ascii_r
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_c
+                CALL    send_uart_byte
+                LOAD    s3, ascii_k
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_s
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                RETURN
+status_volume_updated:
+                LOAD    s3, ascii_V
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_l
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_m
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_p
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                RETURN
+status_command_sent:
+                LOAD    s3, ascii_S
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                RETURN
+status_unknown_key:
+                LOAD    s3, ascii_U
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_k
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_w
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_k
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_y
+                CALL    send_uart_byte
+                RETURN
+status_monitor_updated:
+                LOAD    s3, ascii_M
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_p
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                RETURN
+status_tone_updated:
+                LOAD    s3, ascii_T
+                CALL    send_uart_byte
+                LOAD    s3, ascii_o
+                CALL    send_uart_byte
+                LOAD    s3, ascii_n
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_u
+                CALL    send_uart_byte
+                LOAD    s3, ascii_p
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                LOAD    s3, ascii_a
+                CALL    send_uart_byte
+                LOAD    s3, ascii_t
+                CALL    send_uart_byte
+                LOAD    s3, ascii_e
+                CALL    send_uart_byte
+                LOAD    s3, ascii_d
+                CALL    send_uart_byte
+                RETURN
+
+print_monitor_state:
+                COMPARE sC, 00
+                JUMP    Z, print_off
+                JUMP    print_on
+
+print_tone_state:
+                COMPARE sD, 00
+                JUMP    Z, print_off
+                JUMP    print_on
+
+print_off:
+                LOAD    s3, ascii_O
+                CALL    send_uart_byte
+                LOAD    s3, ascii_F
+                CALL    send_uart_byte
+                LOAD    s3, ascii_F
+                CALL    send_uart_byte
+                RETURN
+
+print_on:
+                LOAD    s3, ascii_O
+                CALL    send_uart_byte
+                LOAD    s3, ascii_N
+                CALL    send_uart_byte
+                RETURN
+
+print_slot_selector:
+                COMPARE s8, 00
+                JUMP    Z, slot_view_0
+                COMPARE s8, 01
+                JUMP    Z, slot_view_1
+                COMPARE s8, 02
+                JUMP    Z, slot_view_2
+                JUMP    slot_view_3
+
+slot_view_0:
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+slot_view_1:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+slot_view_2:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+slot_view_3:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                LOAD    s3, ascii_SPACE
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LBRACK
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                LOAD    s3, ascii_RBRACK
+                CALL    send_uart_byte
+                RETURN
+
+print_volume_value:
+                COMPARE s9, 00
+                JUMP    Z, volume_text_00
+                COMPARE s9, 01
+                JUMP    Z, volume_text_01
+                COMPARE s9, 02
+                JUMP    Z, volume_text_02
+                COMPARE s9, 03
+                JUMP    Z, volume_text_03
+                COMPARE s9, 04
+                JUMP    Z, volume_text_04
+                COMPARE s9, 05
+                JUMP    Z, volume_text_05
+                COMPARE s9, 06
+                JUMP    Z, volume_text_06
+                COMPARE s9, 07
+                JUMP    Z, volume_text_07
+                COMPARE s9, 08
+                JUMP    Z, volume_text_08
+                COMPARE s9, 09
+                JUMP    Z, volume_text_09
+                COMPARE s9, 0A
+                JUMP    Z, volume_text_10
+                COMPARE s9, 0B
+                JUMP    Z, volume_text_11
+                COMPARE s9, 0C
+                JUMP    Z, volume_text_12
+                COMPARE s9, 0D
+                JUMP    Z, volume_text_13
+                COMPARE s9, 0E
+                JUMP    Z, volume_text_14
+                JUMP    volume_text_15
+
+volume_text_00:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                RETURN
+volume_text_01:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                RETURN
+volume_text_02:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                RETURN
+volume_text_03:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+volume_text_04:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_4
+                CALL    send_uart_byte
+                RETURN
+volume_text_05:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_5
+                CALL    send_uart_byte
+                RETURN
+volume_text_06:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_6
+                CALL    send_uart_byte
+                RETURN
+volume_text_07:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_7
+                CALL    send_uart_byte
+                RETURN
+volume_text_08:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_8
+                CALL    send_uart_byte
+                RETURN
+volume_text_09:
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                LOAD    s3, ascii_9
+                CALL    send_uart_byte
+                RETURN
+volume_text_10:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_0
+                CALL    send_uart_byte
+                RETURN
+volume_text_11:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                RETURN
+volume_text_12:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_2
+                CALL    send_uart_byte
+                RETURN
+volume_text_13:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_3
+                CALL    send_uart_byte
+                RETURN
+volume_text_14:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_4
+                CALL    send_uart_byte
+                RETURN
+volume_text_15:
+                LOAD    s3, ascii_1
+                CALL    send_uart_byte
+                LOAD    s3, ascii_5
+                CALL    send_uart_byte
+                RETURN
+
+print_volume_bar:
+                COMPARE s9, 00
+                JUMP    Z, volume_bar_00
+                COMPARE s9, 01
+                JUMP    Z, volume_bar_01
+                COMPARE s9, 02
+                JUMP    Z, volume_bar_02
+                COMPARE s9, 03
+                JUMP    Z, volume_bar_03
+                COMPARE s9, 04
+                JUMP    Z, volume_bar_04
+                COMPARE s9, 05
+                JUMP    Z, volume_bar_05
+                COMPARE s9, 06
+                JUMP    Z, volume_bar_06
+                COMPARE s9, 07
+                JUMP    Z, volume_bar_07
+                COMPARE s9, 08
+                JUMP    Z, volume_bar_08
+                COMPARE s9, 09
+                JUMP    Z, volume_bar_09
+                COMPARE s9, 0A
+                JUMP    Z, volume_bar_10
+                COMPARE s9, 0B
+                JUMP    Z, volume_bar_11
+                COMPARE s9, 0C
+                JUMP    Z, volume_bar_12
+                COMPARE s9, 0D
+                JUMP    Z, volume_bar_13
+                COMPARE s9, 0E
+                JUMP    Z, volume_bar_14
+                JUMP    volume_bar_15
+
+volume_bar_00:
+                CALL    print_bar_00
+                RETURN
+volume_bar_01:
+                CALL    print_bar_01
+                RETURN
+volume_bar_02:
+                CALL    print_bar_02
+                RETURN
+volume_bar_03:
+                CALL    print_bar_03
+                RETURN
+volume_bar_04:
+                CALL    print_bar_04
+                RETURN
+volume_bar_05:
+                CALL    print_bar_05
+                RETURN
+volume_bar_06:
+                CALL    print_bar_06
+                RETURN
+volume_bar_07:
+                CALL    print_bar_07
+                RETURN
+volume_bar_08:
+                CALL    print_bar_08
+                RETURN
+volume_bar_09:
+                CALL    print_bar_09
+                RETURN
+volume_bar_10:
+                CALL    print_bar_10
+                RETURN
+volume_bar_11:
+                CALL    print_bar_11
+                RETURN
+volume_bar_12:
+                CALL    print_bar_12
+                RETURN
+volume_bar_13:
+                CALL    print_bar_13
+                RETURN
+volume_bar_14:
+                CALL    print_bar_14
+                RETURN
+volume_bar_15:
+                CALL    print_bar_15
+                RETURN
+
+print_hash:
+                LOAD    s3, ascii_HASH
+                CALL    send_uart_byte
+                RETURN
+
+print_dash:
+                LOAD    s3, ascii_MINUS
+                CALL    send_uart_byte
+                RETURN
+
+print_bar_00:
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_01:
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_02:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_03:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_04:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_05:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_06:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_07:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_08:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_09:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_10:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_11:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_12:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_13:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_14:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                CALL    print_dash
+                RETURN
+print_bar_15:
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_hash
+                CALL    print_dash
+                RETURN
+
+send_crlf:
+                LOAD    s3, ascii_CR
+                CALL    send_uart_byte
+                LOAD    s3, ascii_LF
+                CALL    send_uart_byte
+                RETURN
+
+send_uart_byte:
+                INPUT   s2, buffer_full
+                TEST    s2, 01
+                JUMP    NZ, send_uart_byte
+                OUTPUT  s3, uart_data_tx
+                RETURN

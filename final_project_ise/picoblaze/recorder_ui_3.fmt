@@ -1,0 +1,480 @@
+                   ;===============================================================
+                   ; Final project PicoBlaze UI foundation
+                   ;===============================================================
+                   CONSTANT user_controls, 00
+                   CONSTANT dip_inputs, 01
+                   CONSTANT uart_data_rx, 02
+                   CONSTANT uart_data_tx, 03
+                   CONSTANT data_present, 04
+                   CONSTANT buffer_full, 05
+                   CONSTANT recorder_status, 10
+                   CONSTANT ascii_BS, 08
+                   CONSTANT ascii_LF, 0A
+                   CONSTANT ascii_CR, 0D
+                   CONSTANT ascii_SPACE, 20
+                   CONSTANT ascii_LPAREN, 28
+                   CONSTANT ascii_RPAREN, 29
+                   CONSTANT ascii_COMMA, 2C
+                   CONSTANT ascii_MINUS, 2D
+                   CONSTANT ascii_PERIOD, 2E
+                   CONSTANT ascii_0, 30
+                   CONSTANT ascii_1, 31
+                   CONSTANT ascii_2, 32
+                   CONSTANT ascii_3, 33
+                   CONSTANT ascii_4, 34
+                   CONSTANT ascii_5, 35
+                   CONSTANT ascii_COLON, 3A
+                   CONSTANT ascii_GREATER, 3E
+                   CONSTANT ascii_QUESTION, 3F
+                   CONSTANT ascii_A, 41
+                   CONSTANT ascii_B, 42
+                   CONSTANT ascii_C, 43
+                   CONSTANT ascii_D, 44
+                   CONSTANT ascii_E, 45
+                   CONSTANT ascii_F, 46
+                   CONSTANT ascii_G, 47
+                   CONSTANT ascii_H, 48
+                   CONSTANT ascii_I, 49
+                   CONSTANT ascii_L, 4C
+                   CONSTANT ascii_M, 4D
+                   CONSTANT ascii_O, 4F
+                   CONSTANT ascii_P, 50
+                   CONSTANT ascii_R, 52
+                   CONSTANT ascii_S, 53
+                   CONSTANT ascii_T, 54
+                   CONSTANT ascii_U, 55
+                   CONSTANT ascii_V, 56
+                   CONSTANT ascii_W, 57
+                   CONSTANT ascii_Y, 59
+                   CONSTANT ascii_a, 61
+                   CONSTANT ascii_c, 63
+                   CONSTANT ascii_d, 64
+                   CONSTANT ascii_e, 65
+                   CONSTANT ascii_g, 67
+                   CONSTANT ascii_h, 68
+                   CONSTANT ascii_i, 69
+                   CONSTANT ascii_k, 6B
+                   CONSTANT ascii_l, 6C
+                   CONSTANT ascii_m, 6D
+                   CONSTANT ascii_n, 6E
+                   CONSTANT ascii_o, 6F
+                   CONSTANT ascii_p, 70
+                   CONSTANT ascii_r, 72
+                   CONSTANT ascii_s, 73
+                   CONSTANT ascii_t, 74
+                   CONSTANT ascii_u, 75
+                   CONSTANT ascii_v, 76
+                   CONSTANT ascii_w, 77
+                   CONSTANT ascii_y, 79
+       cold_start: 
+                   CALL send_crlf
+                   CALL print_welcome
+        main_menu: 
+                   CALL send_crlf
+                   CALL print_menu
+   wait_for_input: 
+                   INPUT s1, data_present
+                   TEST s1, 01
+                   JUMP Z, wait_for_input
+                   INPUT s3, uart_data_rx
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   COMPARE s3, ascii_1
+                   JUMP Z, do_play
+                   COMPARE s3, ascii_2
+                   JUMP Z, do_record
+                   COMPARE s3, ascii_3
+                   JUMP Z, do_delete
+                   COMPARE s3, ascii_4
+                   JUMP Z, do_delete_all
+                   COMPARE s3, ascii_5
+                   JUMP Z, do_volume
+                   JUMP invalid_selection
+          do_play: 
+                   CALL print_play
+                   JUMP main_menu
+        do_record: 
+                   CALL print_record
+                   JUMP main_menu
+        do_delete: 
+                   CALL print_delete
+                   JUMP main_menu
+    do_delete_all: 
+                   CALL print_delete_all
+                   JUMP main_menu
+        do_volume: 
+                   CALL print_volume
+                   JUMP main_menu
+invalid_selection: 
+                   CALL print_invalid
+                   JUMP main_menu
+    print_welcome: 
+                   LOAD s3, ascii_A
+                   CALL send_uart_byte
+                   LOAD s3, ascii_u
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   LOAD s3, ascii_i
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_M
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_a
+                   CALL send_uart_byte
+                   LOAD s3, ascii_g
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_R
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_r
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_r
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+       print_menu: 
+                   LOAD s3, ascii_1
+                   CALL send_uart_byte
+                   LOAD s3, ascii_RPAREN
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_P
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_a
+                   CALL send_uart_byte
+                   LOAD s3, ascii_y
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   LOAD s3, ascii_2
+                   CALL send_uart_byte
+                   LOAD s3, ascii_RPAREN
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_R
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_r
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   LOAD s3, ascii_3
+                   CALL send_uart_byte
+                   LOAD s3, ascii_RPAREN
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_D
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   LOAD s3, ascii_4
+                   CALL send_uart_byte
+                   LOAD s3, ascii_RPAREN
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_D
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_A
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   LOAD s3, ascii_5
+                   CALL send_uart_byte
+                   LOAD s3, ascii_RPAREN
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_V
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_u
+                   CALL send_uart_byte
+                   LOAD s3, ascii_m
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   LOAD s3, ascii_GREATER
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   RETURN 
+       print_play: 
+                   LOAD s3, ascii_P
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_a
+                   CALL send_uart_byte
+                   LOAD s3, ascii_y
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+     print_record: 
+                   LOAD s3, ascii_R
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_r
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+     print_delete: 
+                   LOAD s3, ascii_D
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+ print_delete_all: 
+                   LOAD s3, ascii_D
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_a
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+     print_volume: 
+                   LOAD s3, ascii_V
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_u
+                   CALL send_uart_byte
+                   LOAD s3, ascii_m
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+    print_invalid: 
+                   LOAD s3, ascii_I
+                   CALL send_uart_byte
+                   LOAD s3, ascii_n
+                   CALL send_uart_byte
+                   LOAD s3, ascii_v
+                   CALL send_uart_byte
+                   LOAD s3, ascii_a
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_i
+                   CALL send_uart_byte
+                   LOAD s3, ascii_d
+                   CALL send_uart_byte
+                   LOAD s3, ascii_SPACE
+                   CALL send_uart_byte
+                   LOAD s3, ascii_s
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_l
+                   CALL send_uart_byte
+                   LOAD s3, ascii_e
+                   CALL send_uart_byte
+                   LOAD s3, ascii_c
+                   CALL send_uart_byte
+                   LOAD s3, ascii_t
+                   CALL send_uart_byte
+                   LOAD s3, ascii_i
+                   CALL send_uart_byte
+                   LOAD s3, ascii_o
+                   CALL send_uart_byte
+                   LOAD s3, ascii_n
+                   CALL send_uart_byte
+                   CALL send_crlf
+                   RETURN 
+        send_crlf: 
+                   LOAD s3, ascii_CR
+                   CALL send_uart_byte
+                   LOAD s3, ascii_LF
+                   CALL send_uart_byte
+                   RETURN 
+   send_uart_byte: 
+                   INPUT s2, buffer_full
+                   TEST s2, 01
+                   JUMP NZ, send_uart_byte
+                   OUTPUT s3, uart_data_tx
+                   RETURN 

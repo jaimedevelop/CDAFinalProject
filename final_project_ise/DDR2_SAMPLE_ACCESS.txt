@@ -1,0 +1,32 @@
+DDR2 sample-access notes for the final project
+
+- The final project uses `ram_interface_wrapper` with `DATA_BYTE_WIDTH = 2`.
+- That means one logical RAM address corresponds to one 16-bit audio sample.
+- Example:
+  - logical address 0 -> sample 0
+  - logical address 1 -> sample 1
+  - logical address 2 -> sample 2
+
+- In 16-bit mode the wrapper reports:
+  - `max_ram_address = 26'h0FFFFFF`
+  - so the usable logical sample address range is `0` through `0x0FFFFFF`
+
+- The fixed-slot metadata model currently uses:
+  - slot size = `4,194,304` samples
+  - slot 0 base = `0`
+  - slot 1 base = `4,194,304`
+  - slot 2 base = `8,388,608`
+  - slot 3 base = `12,582,912`
+
+- The current slot plan fits in the available 16-bit logical address space.
+
+- Read timing contract:
+  - pulse `read_request` to issue a read
+  - wait until `rd_data_pres` goes high
+  - `data_out` then holds the returned 16-bit sample
+  - pulse `read_ack` to consume that sample
+
+- Playback implication:
+  - DDR2 reads are not zero-latency
+  - the playback FSM must request the next sample before `sample_req[1]`
+  - keep at least one staged register such as `next_sample`

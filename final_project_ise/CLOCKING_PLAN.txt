@@ -1,0 +1,29 @@
+Final project clocking plan
+
+1. `OSC_100MHz` from the board is the only primary external clock.
+2. `OSC_100MHz` feeds the DDR2 RAM interface input clock directly.
+3. The RAM interface `clkout` signal at 37.5 MHz becomes the source for the
+   next project-level clock wizard.
+4. That future clock wizard should generate two 100 MHz clocks:
+   - one for PicoBlaze/UART
+   - one for the codec-side logic
+5. The codec-side 100 MHz clock then feeds the existing `clk_wiz_v3_6`, which
+   generates the codec-local 50 MHz clock and the ~11.2896 MHz audio clock.
+
+Status in this repo:
+
+- The merged constraints are in `final_project_merged.ucf`.
+- The final top-level skeleton is `audio_recorder_top.v`.
+- The project-level 37.5 MHz -> 100 MHz PLL wrapper is
+  `ipcore_dir/project_clk_wiz_37p5_to_100.vhd`.
+- It is a handwritten `PLL_BASE` wrapper using:
+  - input period = 26.667 ns
+  - multiply = 16
+  - divide = 6
+  - outputs = 100 MHz and 100 MHz
+- Its input is intentionally not re-buffered because the DDR2 wrapper already
+  presents `clkout` on a global clock network.
+- Its second output is intentionally left unbuffered at the handoff into
+  `clk_wiz_v3_6`, because the codec clock wizard performs its own input
+  buffering.
+- Keep `clk_wiz_v3_6.vhd` unchanged.
