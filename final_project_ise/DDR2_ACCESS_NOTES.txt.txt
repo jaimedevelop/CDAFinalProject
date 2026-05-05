@@ -1,0 +1,50 @@
+DDR2 access notes for the final project
+
+- The final project uses `ram_interface_wrapper` with `DATA_BYTE_WIDTH = 2`.
+- One logical address corresponds to one 16-bit audio sample.
+- Example:
+  - logical address 0 -> sample 0
+  - logical address 1 -> sample 1
+  - logical address 2 -> sample 2
+
+- In 16-bit mode the wrapper reports:
+  - `max_ram_address = 26'h0FFFFFF`
+  - usable logical sample address range: 0 through 0x0FFFFFF
+
+- Fixed-slot layout (localparam names from recorder_control.v):
+  - `SAMPLES_PER_SLOT = 4,194,304`
+  - `BASE_SLOT0 = 0`
+  - `BASE_SLOT1 = 4,194,304`
+  - `BASE_SLOT2 = 8,388,608`
+  - `BASE_SLOT3 = 12,582,912`
+  - `LAST_VALID_ADDR = BASE_SLOT3 + SAMPLES_PER_SLOT - 1`
+  - The current slot plan fits within the 16-bit logical address space.
+
+- Slot metadata is tracked per slot in recorder_control.v:
+  - `slot_occupied[0:3]` — whether the slot holds a valid recording
+  - `slot_base[0:3]`     — base address of each slot (fixed at reset)
+  - `slot_used[0:3]`     — number of samples written to the slot
+
+- Read timing contract (ram_interface_wrapper ports):
+  - pulse `read_request` high for one cycle to issue a read
+  - wait until `rd_data_pres` goes high
+  - `data_out` holds the returned 16-bit sample
+  - pulse `read_ack` high for one cycle to consume it
+
+- Playback FIFO (recorder_control.v):
+  - depth:        `FIFO_DEPTH = 8` entries
+  - prime level:  `PRIME_LEVEL = 2` samples buffered before play starts
+  - registers:    `pb_fifo[0:7]`, `pb_fifo_wr`, `pb_fifo_rd`, `pb_fifo_cnt`
+  - fetch index:  `pb_fetch_idx`  — next DDR address to request (relative to slot base)
+  - consume index:`pb_consume_idx`— samples handed to the codec so far
+
+- Playback states in the FSM (`fsm` register):
+  - `ST_PREFETCH` — fills the FIFO to `PRIME_LEVEL` before audio starts
+  - `ST_PLAY`     — normal playback; FIFO kept topped up between codec requests
+  - `ST_PAUSE`    — FIFO continues filling silently; no codec advances
+  - On FIFO underrun during `ST_PLAY`, FSM falls back to `ST_PREFETCH`
+
+- Playback implication:
+  - DDR reads have non-zero latency; the FIFO absorbs this.
+  - `pb_fetch_idx` runs ahead of `pb_consume_idx` to keep the FIFO full.
+  - A stale read in flight after STOP is drained in `ST_IDLE` via `bus_rack`.

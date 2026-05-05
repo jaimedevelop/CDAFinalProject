@@ -1,295 +1,232 @@
 `timescale 1ns / 1ps
 
-// --------------------------------------------------------------------
-// Testbench : tb_audio_sample_path_volume
-// Author    : Kaushik
-// DUT       : audio_sample_path
-//
-// Coverage:
-//   1. Reset de-assertion -- all outputs idle
-//   2. ADC capture path   -- recorder_sample, valid (level), toggle
-//   3. Volume scaling     -- mute(0), partial(1,7,14), unity(15)
-//   4. Source MUX         -- playback > monitor > silence priority
-//   5. Test-tone path     -- amplitude increases with volume
-//   6. Silence (no source selected)
-//
-// Restructured vs original:
-//   - Tasks reorganised into named, single-purpose helpers
-//   - Error tracking via a shared 'fail_count' integer
-//   - Named-block labels on every always / initial
-//   - check_16 / check_1 helpers use $sformat for richer messages
-// --------------------------------------------------------------------
-
 module tb_audio_sample_path_volume;
 
-// ----------------------------------------------------------------
-// DUT ports
-// ----------------------------------------------------------------
-reg         clk;
-reg         reset;
-reg         sample_end;
-reg         sample_req;
-reg  [15:0] audio_input;
-reg         playback_enable;
-reg         monitor_enable;
-reg         test_tone_enable;
-reg  [15:0] playback_sample;
-reg  [3:0]  volume_setting;
+    reg         clk;
+    reg         reset;
+    reg         sample_end;
+    reg         sample_req;
+    reg  [15:0] audio_input;
+    reg         playback_enable;
+    reg         monitor_enable;
+    reg         test_tone_enable;
+    reg  [15:0] playback_sample;
+    reg  [3:0]  volume_setting;
 
-wire [15:0] audio_output;
-wire [15:0] recorder_sample;
-wire        recorder_sample_valid;
-wire        recorder_sample_toggle;
-wire        playback_request_toggle;
+    wire [15:0] audio_output;
+    wire [15:0] recorder_sample;
+    wire        recorder_sample_valid;
+    wire        recorder_sample_toggle;
+    wire        playback_request_toggle;
 
-// ----------------------------------------------------------------
-// DUT instantiation
-// ----------------------------------------------------------------
-audio_sample_path dut (
-    .clk                    (clk),
-    .reset                  (reset),
-    .sample_end             (sample_end),
-    .sample_req             (sample_req),
-    .audio_input            (audio_input),
-    .playback_enable        (playback_enable),
-    .monitor_enable         (monitor_enable),
-    .test_tone_enable       (test_tone_enable),
-    .playback_sample        (playback_sample),
-    .volume_setting         (volume_setting),
-    .audio_output           (audio_output),
-    .recorder_sample        (recorder_sample),
-    .recorder_sample_valid  (recorder_sample_valid),
-    .recorder_sample_toggle (recorder_sample_toggle),
-    .playback_request_toggle(playback_request_toggle)
-);
+    integer error_count;
+    reg [15:0] captured_tone_low;
+    reg [15:0] captured_tone_high;
+    reg [15:0] captured_tone_full;
 
-// ----------------------------------------------------------------
-// Clock: 100 MHz (10 ns period)
-// ----------------------------------------------------------------
-always #5 clk = ~clk;
+    audio_sample_path dut (
+        .clk(clk),
+        .reset(reset),
+        .sample_end(sample_end),
+        .sample_req(sample_req),
+        .audio_input(audio_input),
+        .playback_enable(playback_enable),
+        .monitor_enable(monitor_enable),
+        .test_tone_enable(test_tone_enable),
+        .playback_sample(playback_sample),
+        .volume_setting(volume_setting),
+        .audio_output(audio_output),
+        .recorder_sample(recorder_sample),
+        .recorder_sample_valid(recorder_sample_valid),
+        .recorder_sample_toggle(recorder_sample_toggle),
+        .playback_request_toggle(playback_request_toggle)
+    );
 
-// ----------------------------------------------------------------
-// Shared error counter
-// ----------------------------------------------------------------
-integer fail_count;
+    always #5 clk = ~clk;
 
-// ----------------------------------------------------------------
-// Helper: advance N rising edges
-// ----------------------------------------------------------------
-task advance_clocks;
-    input integer n;
-    integer i;
-    begin
-        for (i = 0; i < n; i = i + 1)
+    task tick;
+        input integer cycle_count;
+        integer idx;
+        begin
+            for (idx = 0; idx < cycle_count; idx = idx + 1)
+                @(posedge clk);
+        end
+    endtask
+
+    task pulse_sample_end_with_input;
+        input [15:0] sample_value;
+        reg previous_toggle;
+        begin
+            previous_toggle = recorder_sample_toggle;
+            audio_input = sample_value;
+            sample_end = 1'b1;
             @(posedge clk);
-    end
-endtask
+            sample_end = 1'b0;
+            @(posedge clk);
 
-// ----------------------------------------------------------------
-// Helper: assert 16-bit equality
-// ----------------------------------------------------------------
-task check_16;
-    input [15:0] got;
-    input [15:0] expected;
-    input [255:0] tag;
-    begin
-        if (got !== expected) begin
-            $display("FAIL [%0s]: expected 0x%04h, got 0x%04h", tag, expected, got);
-            fail_count = fail_count + 1;
+            if (recorder_sample !== sample_value) begin
+                $display("ERROR: recorder_sample expected 0x%0h, got 0x%0h", sample_value, recorder_sample);
+                error_count = error_count + 1;
+            end
+            if (recorder_sample_valid !== 1'b1) begin
+                $display("ERROR: recorder_sample_valid did not assert after sample_end");
+                error_count = error_count + 1;
+            end
+            if (recorder_sample_toggle === previous_toggle) begin
+                $display("ERROR: recorder_sample_toggle did not change after sample_end");
+                error_count = error_count + 1;
+            end
         end
-    end
-endtask
+    endtask
 
-// ----------------------------------------------------------------
-// Helper: assert 1-bit equality
-// ----------------------------------------------------------------
-task check_1;
-    input got;
-    input expected;
-    input [255:0] tag;
-    begin
-        if (got !== expected) begin
-            $display("FAIL [%0s]: expected %0b, got %0b", tag, expected, got);
-            fail_count = fail_count + 1;
+    task pulse_sample_req_and_check_toggle;
+        reg previous_toggle;
+        begin
+            previous_toggle = playback_request_toggle;
+            sample_req = 1'b1;
+            @(posedge clk);
+            sample_req = 1'b0;
+            @(posedge clk);
+
+            if (playback_request_toggle === previous_toggle) begin
+                $display("ERROR: playback_request_toggle did not change after sample_req");
+                error_count = error_count + 1;
+            end
         end
-    end
-endtask
+    endtask
 
-// ----------------------------------------------------------------
-// Helper: drive one sample_end pulse and verify ADC capture outputs
-// ----------------------------------------------------------------
-task drive_adc_sample;
-    input [15:0] adc_word;
-    reg          prev_toggle;
-    begin
-        prev_toggle = recorder_sample_toggle;
-        audio_input = adc_word;
-        sample_end  = 1'b1;
-        @(posedge clk);
+    task check_equal_1bit;
+        input actual_value;
+        input expected_value;
+        input [255:0] check_name;
+        begin
+            if (actual_value !== expected_value) begin
+                $display("ERROR: %0s expected %0d, got %0d", check_name, expected_value, actual_value);
+                error_count = error_count + 1;
+            end
+        end
+    endtask
+
+    task check_equal_16bit;
+        input [15:0] actual_value;
+        input [15:0] expected_value;
+        input [255:0] check_name;
+        begin
+            if (actual_value !== expected_value) begin
+                $display("ERROR: %0s expected 0x%0h, got 0x%0h", check_name, expected_value, actual_value);
+                error_count = error_count + 1;
+            end
+        end
+    endtask
+
+    initial begin
+        clk = 1'b0;
+        reset = 1'b1;
         sample_end = 1'b0;
-        @(posedge clk);
-
-        check_16(recorder_sample,       adc_word, "adc_sample_latch");
-        check_1 (recorder_sample_valid, 1'b1,     "adc_valid_assert");
-        if (recorder_sample_toggle === prev_toggle) begin
-            $display("FAIL [adc_toggle]: did not change on sample_end");
-            fail_count = fail_count + 1;
-        end
-    end
-endtask
-
-// ----------------------------------------------------------------
-// Helper: drive one sample_req pulse and verify playback toggle fires
-// ----------------------------------------------------------------
-task drive_dac_req;
-    reg prev_pb_toggle;
-    begin
-        prev_pb_toggle = playback_request_toggle;
-        sample_req     = 1'b1;
-        @(posedge clk);
         sample_req = 1'b0;
-        @(posedge clk);
+        audio_input = 16'h0000;
+        playback_enable = 1'b0;
+        monitor_enable = 1'b0;
+        test_tone_enable = 1'b0;
+        playback_sample = 16'h0000;
+        volume_setting = 4'h0;
+        error_count = 0;
+        captured_tone_low = 16'h0000;
+        captured_tone_high = 16'h0000;
+        captured_tone_full = 16'h0000;
 
-        if (playback_request_toggle === prev_pb_toggle) begin
-            $display("FAIL [dac_toggle]: playback_request_toggle did not change");
-            fail_count = fail_count + 1;
-        end
-    end
-endtask
+        tick(4);
+        reset = 1'b0;
+        tick(2);
 
-// ----------------------------------------------------------------
-// Stimulus
-// ----------------------------------------------------------------
-initial begin : stimulus
-    // Initialise all inputs
-    clk              = 1'b0;
-    reset            = 1'b1;
-    sample_end       = 1'b0;
-    sample_req       = 1'b0;
-    audio_input      = 16'h0000;
-    playback_enable  = 1'b0;
-    monitor_enable   = 1'b0;
-    test_tone_enable = 1'b0;
-    playback_sample  = 16'h0000;
-    volume_setting   = 4'h0;
-    fail_count       = 0;
+        // Reset sanity
+        check_equal_16bit(audio_output, 16'h0000, "reset audio_output");
+        check_equal_16bit(recorder_sample, 16'h0000, "reset recorder_sample");
+        check_equal_1bit(recorder_sample_valid, 1'b0, "reset recorder_sample_valid");
 
-    advance_clocks(4);
-    reset = 1'b0;
-    advance_clocks(2);
+        // Recorder-side sample capture and toggle generation
+        pulse_sample_end_with_input(16'h3456);
 
-    // ----------------------------------------------------------
-    // Test 1: Reset state
-    // ----------------------------------------------------------
-    check_16(audio_output,          16'h0000, "rst_audio_out");
-    check_16(recorder_sample,       16'h0000, "rst_rec_sample");
-    check_1 (recorder_sample_valid, 1'b0,     "rst_valid");
+        // Playback volume behavior using a fixed playback sample
+        playback_enable = 1'b1;
+        playback_sample = 16'h4000;
 
-    // ----------------------------------------------------------
-    // Test 2: ADC capture and edge detection
-    // ----------------------------------------------------------
-    drive_adc_sample(16'h3456);
+        volume_setting = 4'h0;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h0000, "volume 0 mute");
 
-    // ----------------------------------------------------------
-    // Test 3: Volume scaling over playback path
-    // ----------------------------------------------------------
-    playback_enable = 1'b1;
-    playback_sample = 16'h4000;  // 0.5 of full scale
-
-    // Mute
-    volume_setting = 4'h0;
-    drive_dac_req;
-    check_16(audio_output, 16'h0000, "vol_0_mute");
-
-    // vol=1 -> gain = 2/16 -> 0x4000 * 2 >> 4 = 0x0800
-    volume_setting = 4'h1;
-    drive_dac_req;
-    check_16(audio_output, 16'h0800, "vol_1_scaled");
-
-    // vol=7 -> gain = 8/16 = 0.5 -> 0x4000 * 8 >> 4 = 0x2000
-    volume_setting = 4'h7;
-    drive_dac_req;
-    check_16(audio_output, 16'h2000, "vol_7_scaled");
-
-    // vol=14 -> gain = 15/16 -> 0x4000 * 15 >> 4 = 0x3C00
-    volume_setting = 4'hE;
-    drive_dac_req;
-    check_16(audio_output, 16'h3C00, "vol_14_scaled");
-
-    // Unity
-    volume_setting = 4'hF;
-    drive_dac_req;
-    check_16(audio_output, 16'h4000, "vol_15_unity");
-
-    // ----------------------------------------------------------
-    // Test 4: Monitor path (mic loopback)
-    // ----------------------------------------------------------
-    playback_enable = 1'b0;
-    monitor_enable  = 1'b1;
-    drive_adc_sample(16'h2A2A);
-    drive_dac_req;
-    check_16(audio_output, 16'h2A2A, "monitor_loopback");
-
-    // ----------------------------------------------------------
-    // Test 5: Tone path overrides playback+monitor; amplitude
-    //         increases monotonically with volume
-    // ----------------------------------------------------------
-    playback_enable  = 1'b1;
-    monitor_enable   = 1'b1;
-    test_tone_enable = 1'b1;
-
-    begin : tone_amplitude_check
-        reg [15:0] out_low, out_mid, out_full;
-
-        // First ROM entry is 0x0000; consume it silently
         volume_setting = 4'h1;
-        drive_dac_req;
-
-        // Capture three consecutive ROM outputs at escalating volumes
-        volume_setting = 4'h1;
-        drive_dac_req;
-        out_low = audio_output;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h0800, "volume 1 scaled output");
 
         volume_setting = 4'h7;
-        drive_dac_req;
-        out_mid = audio_output;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h2000, "volume 7 scaled output");
+
+        volume_setting = 4'hE;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h3C00, "volume 14 scaled output");
 
         volume_setting = 4'hF;
-        drive_dac_req;
-        out_full = audio_output;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h4000, "volume 15 full scale");
 
-        if (out_low == 16'h0000) begin
-            $display("FAIL [tone_low_nonzero]: low-volume tone should not be zero");
-            fail_count = fail_count + 1;
+        // Monitor path behavior
+        playback_enable = 1'b0;
+        monitor_enable = 1'b1;
+        pulse_sample_end_with_input(16'h2A2A);
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h2A2A, "monitor path output");
+
+        // Tone path behavior and priority over playback/monitor
+        playback_enable = 1'b1;
+        monitor_enable = 1'b1;
+        test_tone_enable = 1'b1;
+
+        // The sine ROM intentionally starts at 0, so consume one request
+        // before checking amplitude scaling across volume levels.
+        volume_setting = 4'h1;
+        pulse_sample_req_and_check_toggle;
+
+        volume_setting = 4'h1;
+        pulse_sample_req_and_check_toggle;
+        captured_tone_low = audio_output;
+
+        volume_setting = 4'h7;
+        pulse_sample_req_and_check_toggle;
+        captured_tone_high = audio_output;
+
+        volume_setting = 4'hF;
+        pulse_sample_req_and_check_toggle;
+        captured_tone_full = audio_output;
+
+        if (captured_tone_low == 16'h0000) begin
+            $display("ERROR: tone output at low volume should not be zero");
+            error_count = error_count + 1;
         end
-        if (out_mid <= out_low) begin
-            $display("FAIL [tone_amp_rise_1]: mid amplitude <= low amplitude");
-            fail_count = fail_count + 1;
+        if (captured_tone_high <= captured_tone_low) begin
+            $display("ERROR: tone output did not increase between low and medium volume");
+            error_count = error_count + 1;
         end
-        if (out_full <= out_mid) begin
-            $display("FAIL [tone_amp_rise_2]: full amplitude <= mid amplitude");
-            fail_count = fail_count + 1;
+        if (captured_tone_full <= captured_tone_high) begin
+            $display("ERROR: tone output did not increase between medium and full volume");
+            error_count = error_count + 1;
         end
+
+        // Silence path when no source is enabled
+        playback_enable = 1'b0;
+        monitor_enable = 1'b0;
+        test_tone_enable = 1'b0;
+        pulse_sample_req_and_check_toggle;
+        check_equal_16bit(audio_output, 16'h0000, "silence path");
+
+        if (error_count == 0) begin
+            $display("PASS: tb_audio_sample_path_volume completed without errors.");
+        end else begin
+            $display("FAIL: tb_audio_sample_path_volume completed with %0d error(s).", error_count);
+        end
+
+        $finish;
     end
-
-    // ----------------------------------------------------------
-    // Test 6: Silence when no source is selected
-    // ----------------------------------------------------------
-    playback_enable  = 1'b0;
-    monitor_enable   = 1'b0;
-    test_tone_enable = 1'b0;
-    drive_dac_req;
-    check_16(audio_output, 16'h0000, "silence_path");
-
-    // ----------------------------------------------------------
-    // Summary
-    // ----------------------------------------------------------
-    if (fail_count == 0)
-        $display("PASS: tb_audio_sample_path_volume completed without errors.");
-    else
-        $display("FAIL: tb_audio_sample_path_volume completed with %0d error(s).", fail_count);
-
-    $finish;
-end
 
 endmodule

@@ -338,7 +338,7 @@ module audio_recorder_top (
         .playback_request_toggle(playback_request_toggle)
     );
 
-    recorder_control control0 (
+    msg_store_ctrl control0 (
         .clk                (ram_ui_clk),
         .reset              (reset),
         .command            (bridge_command),
