@@ -9,6 +9,20 @@ Audio Codec & Hardware Integration for the CDA 4203/4203L final project.
 - `docs/` - Person 1 answers and notes for Claudio/Person 4.
 - `sim/` - Windows/Icarus Verilog syntax-check support only.
 - `canvas_reference/audio_codec_demo/` - relevant original Canvas audio demo files used as reference.
+- `KAUSHIK_AUDIO_SAMPLE_PATH/` - cleaned report/submission copy of the final-project audio files, with uppercase filenames for easy identification.
+
+## Current Final-Project Audio Package
+
+Use `KAUSHIK_AUDIO_SAMPLE_PATH/` when listing Kaushik's files in the final report. It contains the six audio-side files from `final_project_ise` that Claudio listed:
+
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SRC/AUDIO_SAMPLE_PATH.v`
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SRC/AUDIO_EFFECTS.v`
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SRC/AUDIO_CODEC.v`
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SRC/I2C_AV_CONFIG.v`
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SRC/I2C_CONTROLLER.v`
+- `KAUSHIK_AUDIO_SAMPLE_PATH/SIM/TB_AUDIO_SAMPLE_PATH_VOLUME.v`
+
+The live ISE project still uses the original lowercase filenames in `final_project_ise`. Keep those in place for building unless the team updates the `.xise` project file too.
 
 ## Use In Final Integration
 
