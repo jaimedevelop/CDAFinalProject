@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module audio_codec (
     input  clk,
     input  reset,
@@ -22,6 +24,17 @@ reg [15:0] shift_out;
 reg [15:0] shift_temp;
 reg [15:0] shift_in;
 
+localparam [7:0] LRCK_RESET       = 8'hff;
+localparam [1:0] BCLK_RESET       = 2'b11;
+localparam [7:0] LEFT_SAMPLE_END  = 8'h40;
+localparam [7:0] RIGHT_SAMPLE_END = 8'hc0;
+localparam [7:0] LEFT_SAMPLE_REQ  = 8'hfe;
+localparam [7:0] RIGHT_SAMPLE_REQ = 8'h7e;
+localparam [7:0] LRCK_FALL_EDGE   = 8'h7f;
+localparam [7:0] LRCK_RISE_EDGE   = 8'hff;
+localparam [1:0] BCLK_SET_PHASE   = 2'b10;
+localparam [1:0] BCLK_CLR_PHASE   = 2'b11;
+
 wire lrck = !lrck_divider[7];
 
 assign AUD_ADCLRCK = lrck;
@@ -31,32 +44,30 @@ assign AUD_DACDAT = shift_out[15];
 
 always @(posedge clk) begin
     if (reset) begin
-        lrck_divider <= 8'hff;
-        bclk_divider <= 2'b11;
+        lrck_divider <= LRCK_RESET;
+        bclk_divider <= BCLK_RESET;
     end else begin
         lrck_divider <= lrck_divider + 1'b1;
         bclk_divider <= bclk_divider + 1'b1;
     end
 end
 
-assign sample_end[1] = (lrck_divider == 8'h40);
-assign sample_end[0] = (lrck_divider == 8'hc0);
+assign sample_end[1] = (lrck_divider == LEFT_SAMPLE_END);
+assign sample_end[0] = (lrck_divider == RIGHT_SAMPLE_END);
 assign audio_input = shift_in;
-assign sample_req[1] = (lrck_divider == 8'hfe);
-assign sample_req[0] = (lrck_divider == 8'h7e);
+assign sample_req[1] = (lrck_divider == LEFT_SAMPLE_REQ);
+assign sample_req[0] = (lrck_divider == RIGHT_SAMPLE_REQ);
 
-wire clr_lrck = (lrck_divider == 8'h7f);
-wire set_lrck = (lrck_divider == 8'hff);
-// high right after bclk is set
-wire set_bclk = (bclk_divider == 2'b10 && !lrck_divider[6]);
-// high right before bclk is cleared
-wire clr_bclk = (bclk_divider == 2'b11 && !lrck_divider[6]);
+wire clr_lrck = (lrck_divider == LRCK_FALL_EDGE);
+wire set_lrck = (lrck_divider == LRCK_RISE_EDGE);
+wire set_bclk = (bclk_divider == BCLK_SET_PHASE && !lrck_divider[6]);
+wire clr_bclk = (bclk_divider == BCLK_CLR_PHASE && !lrck_divider[6]);
 
 always @(posedge clk) begin
     if (reset) begin
         shift_out <= 16'h0;
         shift_in <= 16'h0;
-        shift_in <= 16'h0;
+        shift_temp <= 16'h0;
     end else if (set_lrck || clr_lrck) begin
         // check if current channel is selected
         if (channel_sel[set_lrck]) begin

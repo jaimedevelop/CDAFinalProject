@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module audio_effects (
     input  clk,
     input  sample_end,
@@ -14,8 +16,9 @@ reg [15:0] dat;
 
 assign audio_output = dat;
 
-parameter SINE     = 0;
-parameter FEEDBACK = 1;
+localparam SINE_CONTROL_BIT     = 0;
+localparam FEEDBACK_CONTROL_BIT = 1;
+localparam [6:0] LAST_ROM_INDEX = 7'd99;
 
 initial begin
     romdata[0] = 16'h0000;
@@ -126,12 +129,12 @@ always @(posedge clk) begin
     end
 
     if (sample_req) begin
-        if (control[FEEDBACK])
+        if (control[FEEDBACK_CONTROL_BIT])
             dat <= last_sample;
-        else if (control[SINE]) begin
+        else if (control[SINE_CONTROL_BIT]) begin
             dat <= romdata[index];
-            if (index == 7'd99)
-                index <= 7'd00;
+            if (index == LAST_ROM_INDEX)
+                index <= 7'd0;
             else
                 index <= index + 1'b1;
         end else

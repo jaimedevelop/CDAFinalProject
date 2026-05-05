@@ -36,3 +36,13 @@ For the safest final build, keep using the lowercase originals inside `final_pro
 - `I2C_CONTROLLER.v` performs the lower-level I2C transaction timing.
 - `AUDIO_EFFECTS.v` is retained from the audio demo/reference path.
 - `TB_AUDIO_SAMPLE_PATH_VOLUME.v` is the simulation testbench for the sample path and volume behavior.
+
+## Refactor Notes
+
+These files were refactored for readability and safer verification without changing module names or top-level ports:
+
+- Added named constants for codec timing, I2C states, tone indexing, and volume levels.
+- Fixed the testbench pulse timing so checks happen immediately after the active clock edge.
+- Removed a duplicate reset assignment in `AUDIO_CODEC.v`.
+- Added explicit timescale declarations to the audio/I2C source files.
+- Kept the same external module names so `sound_system_top.v` and teammates' code still connect normally.

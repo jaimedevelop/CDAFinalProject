@@ -1,9 +1,8 @@
 `timescale 1ns / 1ps
 
 // Project-owned audio sample path.
-// This sits between audio_codec.v and the future recorder/playback FSM logic.
-// It keeps the codec-side timing contract intact while removing the dependency
-// on the demo-specific audio_effects block.
+// Converts codec timing pulses into recorder/playback handshakes and selects
+// the source that drives the speaker sample.
 
 module audio_sample_path (
     input         clk,
@@ -26,6 +25,11 @@ module audio_sample_path (
 reg [15:0] output_sample;
 reg [15:0] tone_rom [0:99];
 reg [6:0]  tone_index;
+
+localparam [6:0] TONE_LAST_INDEX = 7'd99;
+localparam [3:0] VOLUME_MUTE     = 4'd0;
+localparam [3:0] VOLUME_FULL     = 4'd15;
+localparam [15:0] SILENCE_SAMPLE = 16'd0;
 
 assign audio_output = output_sample;
 
@@ -140,17 +144,12 @@ function [15:0] apply_volume;
     reg [4:0]         gain_step;
     begin
         signed_sample = sample_value;
-        // 4-bit volume policy:
-        //   0  -> mute
-        //   1  -> 2/16 scale
-        //   ...
-        //   14 -> 15/16 scale
-        //   15 -> full scale
-        if (level == 4'd0) begin
-            apply_volume = 16'sd0;
-        end else if (level == 4'd15) begin
+        if (level == VOLUME_MUTE) begin
+            apply_volume = SILENCE_SAMPLE;
+        end else if (level == VOLUME_FULL) begin
             apply_volume = sample_value;
         end else begin
+            // Levels 1-14 map to 2/16 through 15/16 gain.
             gain_step = {1'b0, level} + 5'd1;
             scaled_sample = signed_sample * $signed({1'b0, gain_step});
             apply_volume = scaled_sample >>> 4;
@@ -158,14 +157,24 @@ function [15:0] apply_volume;
     end
 endfunction
 
+function [6:0] next_tone_index;
+    input [6:0] current_index;
+    begin
+        if (current_index == TONE_LAST_INDEX)
+            next_tone_index = 7'd0;
+        else
+            next_tone_index = current_index + 1'b1;
+    end
+endfunction
+
 always @(posedge clk) begin
     if (reset) begin
-        recorder_sample       <= 16'd0;
-        recorder_sample_valid <= 1'b0;
-        recorder_sample_toggle <= 1'b0;
+        recorder_sample          <= SILENCE_SAMPLE;
+        recorder_sample_valid    <= 1'b0;
+        recorder_sample_toggle   <= 1'b0;
         playback_request_toggle <= 1'b0;
-        output_sample         <= 16'd0;
-        tone_index            <= 7'd0;
+        output_sample            <= SILENCE_SAMPLE;
+        tone_index               <= 7'd0;
     end else begin
         recorder_sample_valid <= 1'b0;
 
@@ -179,16 +188,13 @@ always @(posedge clk) begin
             playback_request_toggle <= ~playback_request_toggle;
             if (test_tone_enable) begin
                 output_sample <= apply_volume(tone_rom[tone_index], volume_setting);
-                if (tone_index == 7'd99)
-                    tone_index <= 7'd0;
-                else
-                    tone_index <= tone_index + 1'b1;
+                tone_index <= next_tone_index(tone_index);
             end else if (playback_enable)
                 output_sample <= apply_volume(playback_sample, volume_setting);
             else if (monitor_enable)
                 output_sample <= recorder_sample;
             else
-                output_sample <= 16'd0;
+                output_sample <= SILENCE_SAMPLE;
         end
     end
 end

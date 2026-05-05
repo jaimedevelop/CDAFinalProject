@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module i2c_controller (
     input  clk,
 
@@ -16,20 +18,20 @@ reg [23:0] data;
 reg [4:0] stage;
 reg [6:0] sclk_divider;
 reg clock_en = 1'b0;
-// reg clock_en;
 
-// don't toggle the clock unless we're sending data
-// clock will also be kept high when sending START and STOP symbols
+localparam [6:0] SCLK_LAST_COUNT = 7'd127;
+localparam [6:0] SDAT_UPDATE_AT  = 7'h1f;
+localparam [4:0] LAST_STAGE      = 5'd29;
+
+// Keep SCLK high during START/STOP and idle periods.
 assign i2c_sclk = (!clock_en) || sclk_divider[6];
-wire midlow = (sclk_divider == 7'h1f);
+wire midlow = (sclk_divider == SDAT_UPDATE_AT);
 
 reg sdat = 1'b1;
 // rely on pull-up resistor to set SDAT high
 assign i2c_sdat = (sdat) ? 1'bz : 1'b0;
 
 reg [2:0] acks;
-
-parameter LAST_STAGE = 5'd29;
 
 assign ack = (acks == 3'b000);
 assign done = (stage == LAST_STAGE);
@@ -43,7 +45,7 @@ always @(posedge clk) begin
         acks <= 3'b111;
         data <= i2c_data;
     end else begin
-        if (sclk_divider == 7'd127) begin
+        if (sclk_divider == SCLK_LAST_COUNT) begin
             sclk_divider <= 7'd0;
 
             if (stage != LAST_STAGE)

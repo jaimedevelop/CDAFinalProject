@@ -58,24 +58,28 @@ module tb_audio_sample_path_volume;
         reg previous_toggle;
         begin
             previous_toggle = recorder_sample_toggle;
+            @(negedge clk);
             audio_input = sample_value;
             sample_end = 1'b1;
             @(posedge clk);
-            sample_end = 1'b0;
-            @(posedge clk);
+            #1;
 
             if (recorder_sample !== sample_value) begin
                 $display("ERROR: recorder_sample expected 0x%0h, got 0x%0h", sample_value, recorder_sample);
                 error_count = error_count + 1;
             end
             if (recorder_sample_valid !== 1'b1) begin
-                $display("ERROR: recorder_sample_valid did not assert after sample_end");
+                $display("ERROR: recorder_sample_valid did not assert during sample_end");
                 error_count = error_count + 1;
             end
             if (recorder_sample_toggle === previous_toggle) begin
                 $display("ERROR: recorder_sample_toggle did not change after sample_end");
                 error_count = error_count + 1;
             end
+
+            @(negedge clk);
+            sample_end = 1'b0;
+            @(posedge clk);
         end
     endtask
 
@@ -83,15 +87,19 @@ module tb_audio_sample_path_volume;
         reg previous_toggle;
         begin
             previous_toggle = playback_request_toggle;
+            @(negedge clk);
             sample_req = 1'b1;
             @(posedge clk);
-            sample_req = 1'b0;
-            @(posedge clk);
+            #1;
 
             if (playback_request_toggle === previous_toggle) begin
                 $display("ERROR: playback_request_toggle did not change after sample_req");
                 error_count = error_count + 1;
             end
+
+            @(negedge clk);
+            sample_req = 1'b0;
+            @(posedge clk);
         end
     endtask
 
