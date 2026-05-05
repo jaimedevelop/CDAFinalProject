@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph board["Anvyl FPGA Board"]
+        top["Top Module / Control Logic\nsound_system_top.v"]
+        projpll["Project Clock Wizard\n37.5 MHz mem_sys_clk -> clk_cpu / clk_codec_ref"]
+        codecpll["Codec Clock Wizard\nclk_codec_ref -> clk_codec_main + clk_audio"]
+        cfg["I2C_AV_CONFIG.v\nCodec register setup"]
+        serial["AUDIO_CODEC.v\nSerial audio interface"]
+        path["AUDIO_SAMPLE_PATH.v\nRecord/playback sample path\nvolume + monitor + test tone"]
+        rec["Recorder / Memory Controller\nPerson 2 integration point"]
+    end
+
+    codec["SSM2603 Audio Codec IC\nmic input + speaker output"]
+
+    top -->|"sys_rst"| projpll
+    rec -->|"mem_sys_clk"| projpll
+    projpll -->|"clk_codec_ref"| codecpll
+    codecpll -->|"clk_codec_main"| cfg
+    codecpll -->|"clk_audio"| serial
+    codecpll -->|"clk_audio"| path
+    codecpll -->|"aud_xck"| codec
+
+    cfg -->|"aud_i2c_sclk, aud_i2c_sdat"| codec
+    cfg -->|"codec_init_status[3:0]"| top
+
+    serial -->|"AUD_DACLRCK, AUD_DACDAT, AUD_BCLK"| codec
+    codec -->|"AUD_ADCLRCK, AUD_ADCDAT"| serial
+
+    serial -->|"adc_sample[15:0]\naud_sample_end[1]\naud_sample_req[1]"| path
+    path -->|"dac_sample[15:0]"| serial
+
+    path -->|"rec_sample_data[15:0]\nrec_sample_valid\nrec_sample_tog"| rec
+    rec -->|"pb_sample_data[15:0]\npb_path_en\nlatched_vol[3:0]"| path
+    path -->|"pb_req_tog"| rec
+
+    top -->|"monitor_enable, test_tone_enable\nvolume_setting[3:0]\nsys_rst"| path
+
