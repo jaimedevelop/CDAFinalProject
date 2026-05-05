@@ -1,147 +1,157 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950">
   <defs>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1663c7"/>
+    <marker id="arrow-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#1764c8"/>
     </marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d12d2d"/>
+    <marker id="arrow-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#cc2e2e"/>
     </marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3db7"/>
+    <marker id="arrow-clock" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#7440a8"/>
     </marker>
     <style>
       text { font-family: Arial, Helvetica, sans-serif; fill: #111; }
-      .title { font-size: 24px; font-weight: 700; }
-      .subtitle { font-size: 14px; fill: #333; }
-      .block-title { font-size: 17px; font-weight: 700; }
-      .block-sub { font-size: 13px; fill: #333; }
-      .small { font-size: 12px; fill: #222; }
-      .tiny { font-size: 11px; fill: #333; }
-      .fpga { fill: #f8fbff; stroke: #333; stroke-width: 2; stroke-dasharray: 8 6; }
-      .codec { fill: #fff7e6; stroke: #333; stroke-width: 2; }
-      .clock { fill: #eef0f4; stroke: #777; stroke-width: 1.5; }
-      .control { fill: #ffeceb; stroke: #d12d2d; stroke-width: 1.5; }
-      .logic { fill: #e8f2ff; stroke: #1663c7; stroke-width: 1.8; }
-      .memory { fill: #edf8ef; stroke: #238044; stroke-width: 1.8; }
-      .data-line { stroke: #1663c7; stroke-width: 2.2; fill: none; marker-end: url(#arrow-blue); }
-      .control-line { stroke: #d12d2d; stroke-width: 2.1; fill: none; marker-end: url(#arrow-red); }
-      .clock-line { stroke: #7c3db7; stroke-width: 2; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow-purple); }
-      .bus-text { font-size: 12px; fill: #0f3f88; }
-      .ctrl-text { font-size: 12px; fill: #9d1f1f; }
-      .clk-text { font-size: 12px; fill: #5f2b91; }
+      .title { font-size: 26px; font-weight: 700; }
+      .subtitle { font-size: 15px; fill: #333; }
+      .block-title { font-size: 18px; font-weight: 700; }
+      .block-sub { font-size: 14px; fill: #333; }
+      .label { font-size: 13px; font-weight: 600; }
+      .small { font-size: 12px; fill: #333; }
+      .fpga { fill: #fbfdff; stroke: #333; stroke-width: 2; stroke-dasharray: 9 7; }
+      .codec { fill: #fff6df; stroke: #333; stroke-width: 2; }
+      .clock { fill: #eef0f5; stroke: #777; stroke-width: 1.6; }
+      .config { fill: #ffeceb; stroke: #cc2e2e; stroke-width: 1.7; }
+      .logic { fill: #e8f2ff; stroke: #1764c8; stroke-width: 1.9; }
+      .memory { fill: #edf8ef; stroke: #21834a; stroke-width: 1.9; }
+      .data { stroke: #1764c8; stroke-width: 2.4; fill: none; marker-end: url(#arrow-data); }
+      .control { stroke: #cc2e2e; stroke-width: 2.2; fill: none; marker-end: url(#arrow-control); }
+      .clockline { stroke: #7440a8; stroke-width: 2.1; stroke-dasharray: 7 6; fill: none; marker-end: url(#arrow-clock); }
+      .data-text { fill: #0f4b9b; }
+      .control-text { fill: #a52525; }
+      .clock-text { fill: #5b2f86; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1280" height="760" fill="#ffffff"/>
-  <text x="640" y="38" text-anchor="middle" class="title">Kaushik - Audio Codec &amp; Hardware Integration Block Diagram</text>
-  <text x="640" y="62" text-anchor="middle" class="subtitle">SSM2603 codec setup, serial audio interface, sample path, volume, monitor, and recorder/playback handshakes</text>
+  <rect x="0" y="0" width="1600" height="950" fill="#fff"/>
 
-  <rect x="210" y="92" width="860" height="560" rx="12" class="fpga"/>
-  <text x="235" y="118" class="block-title">Anvyl FPGA / sound_system_top.v</text>
+  <text x="800" y="42" text-anchor="middle" class="title">Kaushik - Audio Codec &amp; Hardware Integration Block Diagram</text>
+  <text x="800" y="70" text-anchor="middle" class="subtitle">SSM2603 codec configuration, serial audio conversion, sample path selection, volume control, and recorder/playback handshakes</text>
 
-  <rect x="20" y="270" width="145" height="170" rx="6" class="codec"/>
-  <text x="92" y="320" text-anchor="middle" class="block-title">SSM2603</text>
-  <text x="92" y="342" text-anchor="middle" class="block-title">Audio Codec IC</text>
-  <text x="92" y="372" text-anchor="middle" class="block-sub">Microphone input</text>
-  <text x="92" y="392" text-anchor="middle" class="block-sub">Speaker output</text>
+  <rect x="230" y="120" width="1085" height="690" rx="10" class="fpga"/>
+  <text x="255" y="150" class="block-title">Anvyl FPGA / sound_system_top.v</text>
 
-  <rect x="265" y="150" width="210" height="78" rx="6" class="clock"/>
-  <text x="370" y="178" text-anchor="middle" class="block-title">Project Clock Wizard</text>
-  <text x="370" y="199" text-anchor="middle" class="block-sub">37.5 MHz mem_sys_clk</text>
-  <text x="370" y="218" text-anchor="middle" class="block-sub">to clk_cpu / clk_codec_ref</text>
+  <!-- External codec -->
+  <rect x="45" y="355" width="150" height="190" rx="6" class="codec"/>
+  <text x="120" y="410" text-anchor="middle" class="block-title">SSM2603</text>
+  <text x="120" y="435" text-anchor="middle" class="block-title">Audio Codec IC</text>
+  <text x="120" y="475" text-anchor="middle" class="block-sub">Mic input</text>
+  <text x="120" y="498" text-anchor="middle" class="block-sub">Speaker output</text>
 
-  <rect x="545" y="150" width="210" height="78" rx="6" class="clock"/>
-  <text x="650" y="178" text-anchor="middle" class="block-title">Codec Clock Wizard</text>
-  <text x="650" y="199" text-anchor="middle" class="block-sub">clk_codec_ref</text>
-  <text x="650" y="218" text-anchor="middle" class="block-sub">to clk_audio + clk_codec_main</text>
+  <!-- Clock lane -->
+  <rect x="290" y="190" width="250" height="92" rx="6" class="clock"/>
+  <text x="415" y="222" text-anchor="middle" class="block-title">Project Clock Wizard</text>
+  <text x="415" y="247" text-anchor="middle" class="block-sub">37.5 MHz mem_sys_clk</text>
+  <text x="415" y="270" text-anchor="middle" class="block-sub">to clk_cpu / clk_codec_ref</text>
 
-  <rect x="830" y="142" width="185" height="92" rx="6" class="control"/>
-  <text x="922" y="171" text-anchor="middle" class="block-title">Top Controls</text>
-  <text x="922" y="194" text-anchor="middle" class="block-sub">sys_rst</text>
-  <text x="922" y="213" text-anchor="middle" class="block-sub">monitor / tone / volume</text>
+  <rect x="650" y="190" width="250" height="92" rx="6" class="clock"/>
+  <text x="775" y="222" text-anchor="middle" class="block-title">Codec Clock Wizard</text>
+  <text x="775" y="247" text-anchor="middle" class="block-sub">clk_codec_ref</text>
+  <text x="775" y="270" text-anchor="middle" class="block-sub">to clk_audio / clk_codec_main</text>
 
-  <rect x="280" y="292" width="190" height="96" rx="6" class="control"/>
-  <text x="375" y="325" text-anchor="middle" class="block-title">I2C_AV_CONFIG.v</text>
-  <text x="375" y="349" text-anchor="middle" class="block-sub">Codec register setup</text>
-  <text x="375" y="371" text-anchor="middle" class="block-sub">status[3:0]</text>
+  <rect x="1010" y="190" width="235" height="92" rx="6" class="config"/>
+  <text x="1128" y="222" text-anchor="middle" class="block-title">Top Control Inputs</text>
+  <text x="1128" y="247" text-anchor="middle" class="block-sub">sys_rst</text>
+  <text x="1128" y="270" text-anchor="middle" class="block-sub">monitor, tone, volume[3:0]</text>
 
-  <rect x="535" y="286" width="220" height="108" rx="6" class="logic"/>
-  <text x="645" y="319" text-anchor="middle" class="block-title">AUDIO_CODEC.v</text>
-  <text x="645" y="344" text-anchor="middle" class="block-sub">Serial audio interface</text>
-  <text x="645" y="366" text-anchor="middle" class="block-sub">LRCK / BCLK / ADC / DAC</text>
+  <!-- Logic lane -->
+  <rect x="290" y="410" width="230" height="130" rx="6" class="config"/>
+  <text x="405" y="448" text-anchor="middle" class="block-title">I2C_AV_CONFIG.v</text>
+  <text x="405" y="474" text-anchor="middle" class="block-sub">I2C_CONTROLLER.v</text>
+  <text x="405" y="499" text-anchor="middle" class="block-sub">codec register setup</text>
+  <text x="405" y="523" text-anchor="middle" class="block-sub">codec_init_status[3:0]</text>
 
-  <rect x="820" y="270" width="220" height="140" rx="6" class="logic"/>
-  <text x="930" y="304" text-anchor="middle" class="block-title">AUDIO_SAMPLE_PATH.v</text>
-  <text x="930" y="329" text-anchor="middle" class="block-sub">record/playback bridge</text>
-  <text x="930" y="351" text-anchor="middle" class="block-sub">volume scaling</text>
-  <text x="930" y="373" text-anchor="middle" class="block-sub">monitor + test tone</text>
-  <text x="930" y="395" text-anchor="middle" class="block-sub">source priority select</text>
+  <rect x="630" y="400" width="265" height="150" rx="6" class="logic"/>
+  <text x="762" y="439" text-anchor="middle" class="block-title">AUDIO_CODEC.v</text>
+  <text x="762" y="467" text-anchor="middle" class="block-sub">serial audio interface</text>
+  <text x="762" y="493" text-anchor="middle" class="block-sub">LRCK / BCLK / ADC / DAC</text>
+  <text x="762" y="519" text-anchor="middle" class="block-sub">parallel sample conversion</text>
 
-  <rect x="1085" y="286" width="170" height="112" rx="6" class="memory"/>
-  <text x="1170" y="323" text-anchor="middle" class="block-title">Recorder / Memory</text>
-  <text x="1170" y="347" text-anchor="middle" class="block-sub">Person 2 interface</text>
-  <text x="1170" y="369" text-anchor="middle" class="block-sub">RAM-backed samples</text>
+  <rect x="1015" y="380" width="260" height="190" rx="6" class="logic"/>
+  <text x="1145" y="420" text-anchor="middle" class="block-title">AUDIO_SAMPLE_PATH.v</text>
+  <text x="1145" y="450" text-anchor="middle" class="block-sub">record/playback bridge</text>
+  <text x="1145" y="477" text-anchor="middle" class="block-sub">volume scaling</text>
+  <text x="1145" y="504" text-anchor="middle" class="block-sub">monitor + test tone select</text>
+  <text x="1145" y="531" text-anchor="middle" class="block-sub">DAC sample source priority</text>
 
-  <!-- Clock and reset paths -->
-  <path d="M 220 170 L 265 170" class="clock-line"/>
-  <text x="224" y="158" class="clk-text">mem_sys_clk</text>
-  <path d="M 475 190 L 545 190" class="clock-line"/>
-  <text x="492" y="178" class="clk-text">clk_codec_ref</text>
-  <path d="M 650 228 L 650 286" class="clock-line"/>
-  <text x="663" y="260" class="clk-text">clk_audio</text>
-  <path d="M 600 228 L 430 292" class="clock-line"/>
-  <text x="495" y="260" class="clk-text">clk_codec_main</text>
-  <path d="M 690 150 L 690 100 L 125 100 L 125 270" class="clock-line"/>
-  <text x="140" y="88" class="clk-text">aud_xck</text>
-  <path d="M 830 176 L 755 176" class="control-line"/>
-  <text x="768" y="164" class="ctrl-text">sys_rst</text>
+  <rect x="1390" y="398" width="170" height="152" rx="6" class="memory"/>
+  <text x="1475" y="438" text-anchor="middle" class="block-title">Recorder /</text>
+  <text x="1475" y="463" text-anchor="middle" class="block-title">Memory Controller</text>
+  <text x="1475" y="502" text-anchor="middle" class="block-sub">Person 2 interface</text>
+  <text x="1475" y="526" text-anchor="middle" class="block-sub">RAM-backed samples</text>
 
-  <!-- Codec configuration -->
-  <path d="M 280 326 L 165 326" class="control-line"/>
-  <text x="174" y="314" class="ctrl-text">aud_i2c_sclk</text>
-  <path d="M 280 356 L 165 356" class="control-line"/>
-  <text x="174" y="378" class="ctrl-text">aud_i2c_sdat</text>
-  <path d="M 470 340 L 535 340" class="control-line"/>
-  <text x="480" y="329" class="ctrl-text">codec_init_status[3:0]</text>
+  <!-- Clock signals, routed above blocks -->
+  <path d="M230 236 H290" class="clockline"/>
+  <text x="246" y="222" class="label clock-text">mem_sys_clk</text>
 
-  <!-- Serial audio pin paths -->
-  <path d="M 535 315 L 165 315" class="data-line"/>
-  <text x="224" y="302" class="bus-text">AUD_ADCLRCK, AUD_ADCDAT</text>
-  <path d="M 535 371 L 165 405" class="data-line"/>
-  <text x="224" y="424" class="bus-text">AUD_DACLRCK, AUD_DACDAT, AUD_BCLK</text>
+  <path d="M540 236 H650" class="clockline"/>
+  <text x="565" y="222" class="label clock-text">clk_codec_ref</text>
 
-  <!-- Codec to sample path -->
-  <path d="M 755 320 L 820 320" class="data-line"/>
-  <text x="760" y="308" class="bus-text">adc_sample[15:0]</text>
-  <path d="M 820 354 L 755 354" class="data-line"/>
-  <text x="760" y="375" class="bus-text">dac_sample[15:0]</text>
-  <path d="M 755 386 L 820 386" class="control-line"/>
-  <text x="760" y="407" class="ctrl-text">sample_end[1], sample_req[1]</text>
+  <path d="M775 282 V340 H762 V400" class="clockline"/>
+  <text x="787" y="334" class="label clock-text">clk_audio</text>
 
-  <!-- Sample path to memory/controller -->
-  <path d="M 1040 310 L 1085 310" class="data-line"/>
-  <text x="1047" y="298" class="bus-text">rec_sample_data[15:0]</text>
-  <path d="M 1040 340 L 1085 340" class="control-line"/>
-  <text x="1047" y="361" class="ctrl-text">rec_sample_valid, rec_sample_tog</text>
-  <path d="M 1085 374 L 1040 374" class="data-line"/>
-  <text x="1044" y="394" class="bus-text">pb_sample_data[15:0]</text>
-  <path d="M 1085 405 L 1040 405" class="control-line"/>
-  <text x="1044" y="427" class="ctrl-text">pb_path_en, latched_vol[3:0]</text>
-  <path d="M 1040 438 L 1085 438 L 1085 398" class="control-line"/>
-  <text x="1047" y="458" class="ctrl-text">pb_req_tog</text>
+  <path d="M700 282 V335 H405 V410" class="clockline"/>
+  <text x="495" y="323" class="label clock-text">clk_codec_main</text>
 
-  <!-- UI/top control to sample path -->
-  <path d="M 922 234 L 922 270" class="control-line"/>
-  <text x="935" y="252" class="ctrl-text">mode + volume control</text>
+  <path d="M840 190 V122 H120 V355" class="clockline"/>
+  <text x="145" y="112" class="label clock-text">aud_xck to SSM2603</text>
+
+  <path d="M1128 282 V380" class="control"/>
+  <text x="1142" y="337" class="label control-text">sys_rst + mode controls</text>
+
+  <!-- I2C codec configuration -->
+  <path d="M290 446 H195" class="control"/>
+  <text x="205" y="431" class="label control-text">aud_i2c_sclk</text>
+  <path d="M290 506 H195" class="control"/>
+  <text x="205" y="530" class="label control-text">aud_i2c_sdat</text>
+
+  <!-- Serial audio pins, separated into their own lanes -->
+  <path d="M630 438 H195" class="data"/>
+  <text x="335" y="423" class="label data-text">ADC side: AUD_ADCLRCK, AUD_ADCDAT</text>
+
+  <path d="M630 515 H195" class="data"/>
+  <text x="315" y="548" class="label data-text">DAC side: AUD_DACLRCK, AUD_DACDAT, AUD_BCLK</text>
+
+  <!-- Parallel codec/sample path interface -->
+  <path d="M895 430 H1015" class="data"/>
+  <text x="920" y="416" class="label data-text">adc_sample[15:0]</text>
+
+  <path d="M1015 472 H895" class="data"/>
+  <text x="915" y="494" class="label data-text">dac_sample[15:0]</text>
+
+  <path d="M895 535 H1015" class="control"/>
+  <text x="910" y="560" class="label control-text">aud_sample_end[1], aud_sample_req[1]</text>
+
+  <!-- Recorder/memory interface, using three clean lanes -->
+  <path d="M1275 418 H1390" class="data"/>
+  <text x="1287" y="403" class="label data-text">rec_sample_data[15:0]</text>
+
+  <path d="M1275 468 H1390" class="control"/>
+  <text x="1287" y="455" class="label control-text">rec_sample_valid, rec_sample_tog</text>
+
+  <path d="M1390 512 H1275" class="data"/>
+  <text x="1288" y="535" class="label data-text">pb_sample_data[15:0]</text>
+
+  <path d="M1390 562 H1295 V550 H1275" class="control"/>
+  <text x="1285" y="592" class="label control-text">pb_path_en, latched_vol[3:0], pb_req_tog</text>
 
   <!-- Legend -->
-  <rect x="310" y="575" width="650" height="58" rx="6" fill="#fff" stroke="#333" stroke-width="1.5"/>
-  <text x="333" y="598" class="small">Legend:</text>
-  <line x1="410" y1="595" x2="475" y2="595" class="data-line"/>
-  <text x="488" y="599" class="tiny">Data signals / sample buses</text>
-  <line x1="650" y1="595" x2="715" y2="595" class="control-line"/>
-  <text x="728" y="599" class="tiny">Control/status pulses</text>
-  <line x1="835" y1="595" x2="900" y2="595" class="clock-line"/>
-  <text x="913" y="599" class="tiny">Clock / reset signals</text>
-  <text x="333" y="622" class="tiny">Main Person 1 files: AUDIO_CODEC.v, AUDIO_SAMPLE_PATH.v, I2C_AV_CONFIG.v, I2C_CONTROLLER.v, AUDIO_EFFECTS.v reference path</text>
+  <rect x="375" y="690" width="780" height="86" rx="7" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="405" y="723" class="block-sub">Legend:</text>
+  <line x1="500" y1="718" x2="580" y2="718" class="data"/>
+  <text x="600" y="723" class="small">Data/sample buses</text>
+  <line x1="735" y1="718" x2="815" y2="718" class="control"/>
+  <text x="835" y="723" class="small">Control/status signals</text>
+  <line x1="980" y1="718" x2="1060" y2="718" class="clockline"/>
+  <text x="1080" y="723" class="small">Clock/reset signals</text>
+  <text x="405" y="758" class="small">Person 1 files shown: AUDIO_CODEC.v, AUDIO_SAMPLE_PATH.v, I2C_AV_CONFIG.v, I2C_CONTROLLER.v</text>
 </svg>

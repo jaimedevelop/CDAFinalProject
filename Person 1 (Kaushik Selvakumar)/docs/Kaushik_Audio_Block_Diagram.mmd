@@ -1,36 +1,36 @@
 flowchart LR
-    subgraph board["Anvyl FPGA Board"]
-        top["Top Module / Control Logic\nsound_system_top.v"]
-        projpll["Project Clock Wizard\n37.5 MHz mem_sys_clk -> clk_cpu / clk_codec_ref"]
-        codecpll["Codec Clock Wizard\nclk_codec_ref -> clk_codec_main + clk_audio"]
-        cfg["I2C_AV_CONFIG.v\nCodec register setup"]
-        serial["AUDIO_CODEC.v\nSerial audio interface"]
-        path["AUDIO_SAMPLE_PATH.v\nRecord/playback sample path\nvolume + monitor + test tone"]
-        rec["Recorder / Memory Controller\nPerson 2 integration point"]
+    codec["SSM2603 Audio Codec IC<br/>Mic input / Speaker output"]
+
+    subgraph fpga["Anvyl FPGA / sound_system_top.v"]
+        direction LR
+        subgraph clocks["Clock / Reset"]
+            proj["Project Clock Wizard<br/>37.5 MHz mem_sys_clk -> clk_codec_ref"]
+            cpll["Codec Clock Wizard<br/>clk_codec_ref -> clk_audio + clk_codec_main"]
+            ctrl["Top Control Inputs<br/>sys_rst, monitor, tone, volume[3:0]"]
+        end
+
+        cfg["I2C_AV_CONFIG.v<br/>I2C_CONTROLLER.v<br/>codec register setup"]
+        ac["AUDIO_CODEC.v<br/>serial audio interface<br/>LRCK / BCLK / ADC / DAC"]
+        path["AUDIO_SAMPLE_PATH.v<br/>record/playback bridge<br/>volume + monitor + test tone"]
+        mem["Recorder / Memory Controller<br/>Person 2 integration point"]
     end
 
-    codec["SSM2603 Audio Codec IC\nmic input + speaker output"]
-
-    top -->|"sys_rst"| projpll
-    rec -->|"mem_sys_clk"| projpll
-    projpll -->|"clk_codec_ref"| codecpll
-    codecpll -->|"clk_codec_main"| cfg
-    codecpll -->|"clk_audio"| serial
-    codecpll -->|"clk_audio"| path
-    codecpll -->|"aud_xck"| codec
+    mem -->|"mem_sys_clk"| proj
+    proj -->|"clk_codec_ref"| cpll
+    cpll -->|"clk_codec_main"| cfg
+    cpll -->|"clk_audio"| ac
+    cpll -->|"clk_audio"| path
+    cpll -->|"aud_xck"| codec
 
     cfg -->|"aud_i2c_sclk, aud_i2c_sdat"| codec
-    cfg -->|"codec_init_status[3:0]"| top
+    codec -->|"AUD_ADCLRCK, AUD_ADCDAT"| ac
+    ac -->|"AUD_DACLRCK, AUD_DACDAT, AUD_BCLK"| codec
 
-    serial -->|"AUD_DACLRCK, AUD_DACDAT, AUD_BCLK"| codec
-    codec -->|"AUD_ADCLRCK, AUD_ADCDAT"| serial
+    ac -->|"adc_sample[15:0]"| path
+    path -->|"dac_sample[15:0]"| ac
+    ac -->|"aud_sample_end[1], aud_sample_req[1]"| path
 
-    serial -->|"adc_sample[15:0]\naud_sample_end[1]\naud_sample_req[1]"| path
-    path -->|"dac_sample[15:0]"| serial
-
-    path -->|"rec_sample_data[15:0]\nrec_sample_valid\nrec_sample_tog"| rec
-    rec -->|"pb_sample_data[15:0]\npb_path_en\nlatched_vol[3:0]"| path
-    path -->|"pb_req_tog"| rec
-
-    top -->|"monitor_enable, test_tone_enable\nvolume_setting[3:0]\nsys_rst"| path
-
+    ctrl -->|"sys_rst + mode controls"| path
+    path -->|"rec_sample_data[15:0], rec_sample_valid, rec_sample_tog"| mem
+    mem -->|"pb_sample_data[15:0], pb_path_en, latched_vol[3:0]"| path
+    path -->|"pb_req_tog"| mem
