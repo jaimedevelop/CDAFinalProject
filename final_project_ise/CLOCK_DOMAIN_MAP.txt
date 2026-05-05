@@ -1,0 +1,97 @@
+CLOCK_DOMAIN_MAP.txt
+Project: FPGA Audio Recorder — CDA 4203/4203L Spring 2026
+───────────────────────────────────────────────────────────
+
+OVERVIEW
+────────
+All clocking in this design derives from a single board oscillator.
+No secondary external clock source is used.
+
+
+CLOCK TREE
+──────────
+
+  board_clk_100mhz  (D11, LVCMOS33)
+        │
+        │   100 MHz — primary oscillator, direct pad input
+        │
+        ▼
+  ┌─────────────────────────────┐
+  │   DDR2 RAM interface        │   (ram_interface.ngc / MIG core)
+  │   clk input = 100 MHz       │
+  └─────────────┬───────────────┘
+                │
+                │   clkout = 37.5 MHz  (on global clock network,
+                │                       already driven by BUFG inside MIG)
+                ▼
+  ┌─────────────────────────────────────────────┐
+  │   project_clk_wiz_37p5_to_100               │
+  │   (ipcore_dir/project_clk_wiz_37p5_to_100   │
+  │    — handwritten PLL_BASE wrapper)           │
+  │                                              │
+  │   Input period : 26.667 ns  (37.5 MHz)       │
+  │   PLL multiply : 16                          │
+  │   PLL divide   : 6                           │
+  │   Input buffer : NONE  (clkout already on    │
+  │                  global net from MIG BUFG)   │
+  └──────────────┬──────────────────┬────────────┘
+                 │                  │
+                 │  100 MHz         │  100 MHz
+                 │  (PicoBlaze /    │  (codec-side)
+                 │   UART domain)   │
+                 ▼                  ▼
+           picoblaze_clk      codec_pll_clk
+                                    │
+                                    │   Second output left unbuffered
+                                    │   at handoff — clk_wiz_v3_6
+                                    │   performs its own input buffering.
+                                    ▼
+                          ┌──────────────────┐
+                          │   clk_wiz_v3_6   │  (unchanged — do not modify)
+                          │   100 MHz in     │
+                          └────────┬─────────┘
+                                   │
+                       ┌───────────┴───────────┐
+                       │                       │
+                    50 MHz               ~11.2896 MHz
+                  (codec logic)          (audio master clock / MCLK)
+
+
+DOMAIN SUMMARY
+──────────────
+
+  Domain name       Frequency    Source                  Consumers
+  ──────────────── ──────────── ──────────────────────── ───────────────────────
+  board_clk_100mhz  100 MHz      Board oscillator pad     DDR2 MIG core only
+  ram_clkout         37.5 MHz    MIG clkout (BUFG inside) FSM (sys_clk), PLL in
+  picoblaze_clk      100 MHz     project_clk_wiz out 0    PicoBlaze, UART
+  codec_pll_clk      100 MHz     project_clk_wiz out 1    clk_wiz_v3_6 input
+  codec_logic_clk     50 MHz     clk_wiz_v3_6 out 0       Codec datapath logic
+  audio_mclk         ~11.2896 MHz clk_wiz_v3_6 out 1      SSM2603 MCLK (AUD_XCK)
+
+
+BUFFERING NOTES
+───────────────
+1. board_clk_100mhz enters the MIG core directly. The MIG inserts its own
+   IBUFG internally. Do NOT add an external IBUFG or BUFG on this net.
+
+2. ram_clkout (37.5 MHz) is already on the global clock network when it exits
+   the MIG. project_clk_wiz_37p5_to_100 must not re-buffer its input.
+
+3. The second 100 MHz output of project_clk_wiz_37p5_to_100 (codec_pll_clk)
+   is connected directly to the input of clk_wiz_v3_6 without an intervening
+   BUFG. clk_wiz_v3_6 contains its own input buffer. Adding one externally
+   would create an illegal IBUF+BUFG-in-series condition.
+
+4. picoblaze_clk should be routed through a BUFG before reaching flip-flop
+   clock pins. This is handled inside project_clk_wiz_37p5_to_100 on its
+   first output (CLKOUT0_BUF).
+
+
+FILE REFERENCES
+───────────────
+  board_constraints.ucf                   — pin assignments and clock period
+  ipcore_dir/project_clk_wiz_37p5_to_100.vhd  — PLL_BASE wrapper (37.5→100 MHz)
+  ipcore_dir/clk_wiz_v3_6.vhd            — codec clock wizard (do not modify)
+  ram_interface_wrapper.v                 — passes board_clk_100mhz to MIG
+  audio_recorder_top.v                    — top-level clock wiring
