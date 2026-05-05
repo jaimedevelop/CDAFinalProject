@@ -15,15 +15,15 @@
   <version xil_pn:ise_version="14.7" xil_pn:schema_version="2"/>
 
   <files>
-    <file xil_pn:name="audio_codec.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="AUDIO_CODEC.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="1"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="17"/>
     </file>
-    <file xil_pn:name="audio_effects.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="AUDIO_EFFECTS.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="2"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
-    <file xil_pn:name="audio_sample_path.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="AUDIO_SAMPLE_PATH.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="16"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="16"/>
     </file>
@@ -35,11 +35,11 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="23"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="15"/>
     </file>
-    <file xil_pn:name="i2c_av_config.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="I2C_AV_CONFIG.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="4"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="14"/>
     </file>
-    <file xil_pn:name="i2c_controller.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="I2C_CONTROLLER.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="5"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="6"/>
     </file>
